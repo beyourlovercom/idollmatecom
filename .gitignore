@@ -27,3 +27,7 @@ node_modules/
 vendor/
 .idea/
 .vscode/
+
+# Python utilities
+__pycache__/
+*.pyc
