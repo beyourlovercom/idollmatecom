@@ -6,7 +6,7 @@
 - URL inventory only: actual HTML, product images, themes, original CSS/JS and checkout are NOT backed up by the CSV.
 - Some template hints are probabilistic; a WooCommerce slug can also be an article.
 - Historical index was truncated to bounded batches and still reported additional records. **This is not a complete all-page inventory**.
-- Any archived HTML templates retrieved for internal comparison remain outside this public repository on the China Mac.
+- 25 historical HTML samples were retrieved and their SHA-256 hashes verified on the China Mac; files remain private, are NOT a complete asset-inclusive backup, and are not committed to this public repository.
 
 ## Template hints
 - editorial: 1
