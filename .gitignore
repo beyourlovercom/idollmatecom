@@ -1,0 +1,29 @@
+# WordPress production/runtime material (never commit)
+wp-config.php
+.env
+.env.*
+!.env.example
+*.sql
+*.sql.gz
+*.sqlite
+wp-content/uploads/
+wp-content/cache/
+wp-content/upgrade/
+*.log
+*.bak
+*.zip
+
+# Third-party research captures: local/private only
+reference-archive/
+reference-private/
+yourdoll-archive/
+screenshots-private/
+backups/
+*.har
+
+# Local development
+.DS_Store
+node_modules/
+vendor/
+.idea/
+.vscode/
