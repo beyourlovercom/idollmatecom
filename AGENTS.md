@@ -24,3 +24,9 @@
 - Keep Dev non-indexed and use TLS. Configure test-only payments and shipping before transactional UAT.
 - Verify WooCommerce activation, page routes, theme, responsive storefront, performance and security before release.
 - Record deploy versions and rollback steps in the repository.
+
+## Temporary image-source rule — Owner approved 2026-10-28
+- **Scope: iDollmate Dev / R7 and reference research only.** For any illustrative image reference used during current development, retain the exact **original `https://www.yourdoll.com/...` or `https://yourdoll.com/...` image URL**. Do not generate local duplicates, backup copies, image-download mirrors, resized/re-encoded copies, WordPress Media Library imports, proxy/caching endpoints, or commit original images to GitHub. Store image URLs as **metadata only**.
+- Third-party image URLs may return 403, expire or block hotlinking. **Never bypass origin restrictions** and do not replace them with unauthorized mirrors; use image-free/neutral empty states when a picture cannot load.
+- URL-linking alone does **not** grant rights to reproduce or commercially display third-party images. Do not publish competitors' image content to an externally visible storefront without permission. Mark research references as private/admin-only until licensing/permission and an accessible origin are verified. Production image policy requires independent Owner approval and applicable rights.
+- All new image features must be tested for: no binary downloads to project/server; no WordPress attachment creation; no permanent local cache; no substitution by unrelated domains; failed images do not break layout or checkout.
