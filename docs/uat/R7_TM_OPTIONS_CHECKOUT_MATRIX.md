@@ -1,6 +1,6 @@
 # R7 · TM Extra Product Options / WooCommerce checkout acceptance
 Date: 2026-10-28
-Status: **PENDING ON-SITE UAT — NOT A PASS**
+Status: **TM native pricing + Cart + server-side order handoff PASS; browser checkout/payment, tax/shipping PENDING**
 
 ## Environment
 - Only `https://dev.idollmate.com`. Production `idollmate.com`/Shopify is untouched.
@@ -49,3 +49,45 @@ Proposed **temporary product-local** TM fields, using Builder mode (do not creat
 - If any PHP CLI is SIGKILL 137, stop writing and record as BLOCKED until account-level resource health is restored.
 - WP native variations (2 SKUs) persistence was previously proven in Dev; this does **not** substitute for TM checkout acceptance.
 - Keep PR #3 Draft/open until tests pass. The user waived DB backup requirement for disposable **Dev only**; no waiver for Production.
+
+## Actual verified Dev execution — 2026-10-28 15:23+08 onward
+
+**Host recovery:** After earlier PHP SIGKILL/137, the retest at 07:23 UTC confirmed PHP CLI 8.3.36 and WP-CLI working. Account process count had fallen to 56 (~2,969 MiB RSS); no worker was killed, no restart or hosting upgrade performed. Resource root cause remains unconfirmed.
+
+**Native TM form fixture:** Temporarily attached an original, product-local TM Builder form to Dev **Draft** test product #15 only. The installed ThemeComplete plugin `get_product_tm_epos()` returned **1 parsed group, 1 checkbox field, 3 priced options**:
+- Premium head: fixed +$149; upgraded skeleton: fixed +$59; accessory: fixed +$35.
+- The native plugin reported choice prices `149`, `59`, `35`; no custom price filter, no copied media, no global form.
+- Test products #13 and #15 remain Draft, not accessible to public customers. The temporary form remains only on #15 for further visual/browser UAT and should be deleted on branch closure.
+
+**Actual WooCommerce cart execution with ThemeComplete hooks enabled** (not hand-calculated):
+
+| Case | Expected | Actual Woo cart subtotal | Result |
+|---|---:|---:|---|
+| A: TPE, no options | $999.00 | **$999.00** | PASS |
+| B: TPE + head | $1,148.00 | **$1,148.00** | PASS |
+| C: TPE + all three | $1,242.00 | **$1,242.00** | PASS |
+| D: Silicone + all three | $1,342.00 | **$1,342.00** | PASS |
+| E: TPE + head, quantity 2 | $2,296.00 | **$2,296.00** | PASS |
+
+An initial TPE test was rejected because the QA harness submitted `Tpe` instead of the actual `TPE` variation attribute. After correcting input to the real exact attribute, **all five cases passed**.
+
+**Extended real cart checks:**
+- Recalculation twice: unchanged $1,148 subtotal (no duplicate add-on): PASS.
+- Quantity 1→2: $2,296 subtotal: PASS.
+- A *temporary* Woo fixed-cart $10 test coupon: $2,296 subtotal, $10 discount, $2,286 net: PASS. Coupon deleted within the test execution: PASS.
+- Remove cart item: empty cart: PASS.
+
+**Native Checkout server-side order creation and deletion:**
+- Test composition: TPE $999 + head $149 + skeleton $59 = **$1,207.00**.
+- Woo Checkout `create_order()` executed with no gateway/payment and synthetic `example.invalid` contact, email sending suppressed. Actual cart subtotal **$1,207**, order total **$1,207**, line item total **$1,207**: PASS.
+- Order item carried plugin option metadata (`_tmcartepo_data`, `_tm_epo_options_prices`, etc.). Temporary order ID **19 was permanently deleted in the same execution**, and a follow-up WP readback confirmed **ORDER_DELETED**.
+- No payments/refunds, no customer emails, no real shipping, no third-party images requested or stored.
+
+**Separate independent US Mac mini front-end retest:** `/`, `/idollmate-home-uat/`, `/shop/`, `/cart/`, `/checkout/`, `/my-account/` returned HTTP 200 with `noindex`. Test product #15 remained Draft; Dev `blog_public=0`, Woo 11.2.1, Catalog 0.2.0 and Home 0.1.0 active.
+
+### Remaining blockers and claims NOT yet accepted
+1. **Browser/UI:** Full TM field display, selection, dynamic price update, mobile responsive layout, and browser-initiated checkout not signed off. Draft parent cannot be purchased publicly by design.
+2. **Tax and shipping:** Dev `woocommerce_calc_taxes=no`, **0 configured shipping zones**. Tax-inclusive and real shipping checkout calculations cannot be marked PASS until controlled test configuration exists.
+3. **Payment/refund:** BACS, cheque and COD are disabled; no approved test gateway was enabled. Gateway authorization, webhook, paid order and refund are out of scope of this evidence.
+4. **Safety:** PR #3 remains Draft/unmerged. Production `idollmate.com`, Shopify/DNS, licensing, Woo order emails and third-party image hosting remain untouched. The user waived DB backup **only for disposable Dev**.
+
