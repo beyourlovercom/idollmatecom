@@ -16,6 +16,8 @@ function __(string $str, string $domain = ''): string { return $str; }
 function esc_html__(string $str, string $domain = ''): string { return $str; }
 function wp_unslash(string $s): string { return stripslashes($s); }
 function sanitize_text_field(string $s): string { return trim(strip_tags($s)); }
+function wp_parse_url(string $url) { return parse_url($url); }
+function esc_url_raw(string $url): string { return $url; }
 function woocommerce_wp_select(array $args): void {}
 function woocommerce_wp_text_input(array $args): void {}
 class WooCommerce {}
@@ -73,4 +75,32 @@ check(!isset($p->saved['_idm_estimated_dispatch_days']) &&
 $_POST = [];
 IDM_Catalog_Fields_V1::save_fields($p);
 check($p->saved['_idm_fulfillment_mode'] === 'local_stock', 'Missing fields do not delete metadata');
+check(
+	IDM_Catalog_Fields_V1::valid_image_url('https://www.yourdoll.com/wp-content/uploads/2025/02/example.webp'),
+	'Only direct original HTTPS YourDoll uploads are accepted'
+);
+foreach ([
+	'https://other.com/wp-content/uploads/2025/02/example.webp',
+	'https://www.yourdoll.com.evil.invalid/wp-content/uploads/example.jpg',
+	'http://www.yourdoll.com/wp-content/uploads/example.jpg',
+	'https://www.yourdoll.com/wp-content/uploads/file.svg',
+	'https://www.yourdoll.com/wp-content/uploads/file.jpg?redirect=evil',
+	'https://www.yourdoll.com/wp-content/uploads/../secret.jpg',
+	'https://cdn-kmmml.nitrocdn.com/example.jpg',
+] as $bad) {
+	check(!IDM_Catalog_Fields_V1::valid_image_url($bad), 'Invalid/mirrored image URLs rejected');
+}
+$p->saved = [];
+$_POST = [ '_idm_reference_image_url' => 'https://www.yourdoll.com/wp-content/uploads/2025/02/example.webp' ];
+IDM_Catalog_Fields_V1::save_fields($p);
+check(
+	($p->saved['_idm_reference_image_url'] ?? '') === 'https://www.yourdoll.com/wp-content/uploads/2025/02/example.webp',
+	'Store only reference URL metadata; no image binary'
+);
+$_POST = [ '_idm_reference_image_url' => 'https://host.invalid/wp-content/uploads/2025/02/example.jpg' ];
+IDM_Catalog_Fields_V1::save_fields($p);
+check(
+	($p->saved['_idm_reference_image_url'] ?? '') === 'https://www.yourdoll.com/wp-content/uploads/2025/02/example.webp',
+	'Invalid URL does not overwrite existing reference'
+);
 echo "ALL ISOLATED CATALOG SMOKE TESTS PASSED\n";
