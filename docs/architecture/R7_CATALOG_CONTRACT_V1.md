@@ -42,3 +42,10 @@ The existing Hostinger AI theme is active. A partner previously proposed WoodMar
 3. Backoffice UAT: product field persistence, brand/attribute mapping and no price/stock side effects.
 4. Original storefront templates, responsive customer UX, with test content only.
 5. Checkout including add-on price arithmetic, tax, shipping, refunds and rollbacks.
+
+## R7.1 image reference rule (Owner pass, 2026-10-28)
+- **Temporary Dev only**: all third-party research image references, if needed, use the original `https://www.yourdoll.com/wp-content/uploads/...` URL **as a URL string**, not a file. This is not a license to display competitor imagery commercially.
+- Never download, resize/re-encode, sideload to Woo product gallery, create WordPress media attachments, store image binaries, create proxy/CDN mirrors, or publish original photo/HTML to this public GitHub repository.
+- Catalog Fields V0.2 adds the backend-only field `_idm_reference_image_url` with HTTPS, exact host and supported raster extension validation. It does **not** render that image to customers, invoke HTTP GET/HEAD at save time, or alter Woo featured/gallery images.
+- **Operational verification**: sampled direct origin image URLs returned HTTP 403 even with first-party Referer. Consequently the homepage retains a CSS-only, image-free placeholder; do not force broken third-party image tags into the public-facing Dev UI. This can be revisited only when the image origin allows normal loading *and* usage rights are established.
+- No image backup is required or desired in the current iDollmate development phase; the private historical inventory remains metadata-only for image URLs.
