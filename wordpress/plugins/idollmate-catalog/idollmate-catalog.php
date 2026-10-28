@@ -2,7 +2,7 @@
 /**
  * Plugin Name: iDollmate Catalog Fields
  * Description: Minimal theme-independent fulfillment and dispatch metadata for WooCommerce products.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * WC requires at least: 9.0
@@ -14,10 +14,11 @@ defined( 'ABSPATH' ) || exit;
 
 if ( ! class_exists( 'IDM_Catalog_Fields_V1' ) ) {
 	final class IDM_Catalog_Fields_V1 {
-		public const VERSION = '0.1.0';
+		public const VERSION = '0.2.0';
 		public const MODE_META = '_idm_fulfillment_mode';
 		public const REGION_META = '_idm_dispatch_region';
 		public const DAYS_META = '_idm_estimated_dispatch_days';
+		public const IMAGE_URL_META = '_idm_reference_image_url';
 
 		/**
 		 * WooCommerce owns product price, stock, product brands and attributes.
@@ -107,7 +108,41 @@ if ( ! class_exists( 'IDM_Catalog_Fields_V1' ) ) {
 					'custom_attributes' => array( 'min' => '0', 'max' => '180', 'step' => '1' ),
 				)
 			);
+			woocommerce_wp_text_input(
+				array(
+					'id'          => self::IMAGE_URL_META,
+					'label'       => __( 'YourDoll image reference URL', 'idollmate-catalog' ),
+					'description' => __( 'Dev reference link only. No image files are copied or imported. Original external images may return 403 and require usage rights before commercial display.', 'idollmate-catalog' ),
+					'desc_tip'    => true,
+					'type'        => 'url',
+					'value'       => $product->get_meta( self::IMAGE_URL_META, true ),
+				)
+			);
 			echo '</div>';
+		}
+
+		/**
+		 * Accept ONLY original YourDoll image URLs. Do not proxy, mirror,
+		 * download, create WP media attachments or auto-render images.
+		 */
+		public static function valid_image_url( string $url ): bool {
+			if ( strlen( $url ) > 2048 ) {
+				return false;
+			}
+			$parsed = wp_parse_url( $url );
+			if ( ! is_array( $parsed ) ) {
+				return false;
+			}
+			if ( 'https' !== strtolower( (string) ( $parsed['scheme'] ?? '' ) )
+				|| ! in_array( strtolower( (string) ( $parsed['host'] ?? '' ) ), array( 'yourdoll.com', 'www.yourdoll.com' ), true )
+				|| isset( $parsed['user'] ) || isset( $parsed['pass'] ) || isset( $parsed['port'] )
+				|| isset( $parsed['query'] ) || isset( $parsed['fragment'] ) ) {
+				return false;
+			}
+			$path = (string) ( $parsed['path'] ?? '' );
+			return str_starts_with( $path, '/wp-content/uploads/' )
+				&& (bool) preg_match( '/\\.(?:jpe?g|png|webp|gif|avif)$/i', $path )
+				&& false === strpos( $path, '..' );
 		}
 
 		/**
@@ -135,6 +170,14 @@ if ( ! class_exists( 'IDM_Catalog_Fields_V1' ) ) {
 					$product->delete_meta_data( $key );
 				} else {
 					$product->update_meta_data( $key, $raw );
+				}
+			}
+			if ( isset( $_POST[ self::IMAGE_URL_META ] ) && is_scalar( $_POST[ self::IMAGE_URL_META ] ) ) {
+				$raw = trim( (string) wp_unslash( (string) $_POST[ self::IMAGE_URL_META ] ) );
+				if ( '' === $raw ) {
+					$product->delete_meta_data( self::IMAGE_URL_META );
+				} elseif ( self::valid_image_url( $raw ) ) {
+					$product->update_meta_data( self::IMAGE_URL_META, esc_url_raw( $raw ) );
 				}
 			}
 			if ( isset( $_POST[ self::DAYS_META ] ) && is_scalar( $_POST[ self::DAYS_META ] ) ) {
