@@ -1,0 +1,56 @@
+{
+  "schema_version": "r8-v1",
+  "categories": [
+    "full-body-dolls",
+    "torso-dolls",
+    "mini-dolls",
+    "anime-style-dolls",
+    "custom-dolls"
+  ],
+  "materials": [
+    "tpe",
+    "silicone",
+    "hybrid"
+  ],
+  "fulfillment_modes": [
+    "factory_mto",
+    "local_stock"
+  ],
+  "dispatch_regions": [
+    "CN",
+    "US",
+    "EU",
+    "OTHER"
+  ],
+  "row_types": [
+    "simple",
+    "variable",
+    "variation"
+  ],
+  "product_status": [
+    "draft"
+  ],
+  "columns": [
+    "sku",
+    "row_type",
+    "parent_sku",
+    "title",
+    "slug",
+    "category_slug",
+    "brand_slug",
+    "material",
+    "size_code",
+    "height_cm",
+    "weight_kg",
+    "fulfillment_mode",
+    "dispatch_region",
+    "lead_days",
+    "price_usd",
+    "stock_quantity",
+    "content_origin",
+    "source_ref",
+    "reference_image_url",
+    "product_status"
+  ],
+  "notes": "R8-A provisional editorial category terms; values require Owner signoff before any Dev import. No media download / WP writes."
+}
