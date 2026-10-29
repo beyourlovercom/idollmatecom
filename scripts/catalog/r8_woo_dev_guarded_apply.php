@@ -54,8 +54,16 @@ if (!hash_equals($id, $calculated_id)) {
     throw new RuntimeException('R8-C plan checksum mismatch');
 }
 function idm_r8_canonical($value) {
+    // Preserve JSON empty objects as {}, not []: Woo's attribute dictionary
+    // is empty on the current Dev baseline and Python digest must match.
+    if (is_object($value)) {
+        $props = get_object_vars($value);
+        ksort($props, SORT_STRING);
+        $out = new stdClass();
+        foreach ($props as $key=>$element) { $out->{$key} = idm_r8_canonical($element); }
+        return $out;
+    }
     if (!is_array($value)) { return $value; }
-    if (!array_is_list($value)) { ksort($value, SORT_STRING); }
     foreach ($value as $key=>$element) { $value[$key] = idm_r8_canonical($element); }
     return $value;
 }
@@ -71,7 +79,8 @@ if (getenv('R8_CONFIRM_PHRASE') !== $required_phrase) {
 if (!is_array($source_snapshot) || $source_snapshot['site'] !== 'https://dev.idollmate.com') {
     throw new RuntimeException('R8-C wrong snapshot');
 }
-$snapshot_canonical = wp_json_encode(idm_r8_canonical($source_snapshot),
+$snapshot_object = json_decode(file_get_contents($snapshot_path), false);
+$snapshot_canonical = wp_json_encode(idm_r8_canonical($snapshot_object),
     JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 if (!hash_equals((string)$plan['snapshot_sha256'], hash('sha256', $snapshot_canonical))) {
     throw new RuntimeException('R8-C snapshot digest mismatch');
