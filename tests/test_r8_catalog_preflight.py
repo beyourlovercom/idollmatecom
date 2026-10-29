@@ -116,7 +116,7 @@ class PreflightTests(unittest.TestCase):
         self.assertIn("Category not in", self.reasons(r))
         self.assertIn("must remain draft", self.reasons(r))
         self.assertIn("content_origin", self.reasons(r))
-        self.assertIn("source", self.reasons(r))
+        self.assertIn("supplier or license evidence ID", self.reasons(r))
 
     def test_reference_url_only_no_image_fetch(self):
         url = "https://www.yourdoll.com/wp-content/uploads/2025/02/example.webp"
