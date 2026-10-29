@@ -268,7 +268,7 @@ if (!is_array($live_snapshot)) {
                     return $p ? (string)$p->get_meta('_idm_r8_batch_id', true) : '';
                 }
             );
-            idm_r8_assert_applied_batch_replay($journal, $tagged_ids, $added);
+            idm_r8_assert_applied_batch_replay($journal, $tagged_ids, $added, (int)$plan['total_rows']);
             idm_r8_assert_owned_products_unchanged($tagged_ids, $id);
             echo 'R8_DEV_APPLY_ALREADY_COMPLETE batch='.$id.' created=0'.PHP_EOL;
             return;
@@ -422,6 +422,13 @@ if (!is_array($live_snapshot)) {
             if (get_post_meta($pid, '_idm_r8_import_fingerprint', true) !== $final_fingerprint) {
                 throw new RuntimeException('R8-C final product fingerprint not persisted');
             }
+        }
+        /* A partial batch must NEVER become a committed applied batch,
+         * even if every saved row has its own correct fingerprint. */
+        if ($journal['created_count'] !== (int)$plan['total_rows']
+            || count($journal['ids']) !== (int)$plan['total_rows']
+            || !empty($journal['pending_sku'])) {
+            throw new RuntimeException('R8-C incomplete batch; journal remains in_progress');
         }
         $journal['state'] = 'applied';
         if (!update_option($batch_key, $journal, false)) {

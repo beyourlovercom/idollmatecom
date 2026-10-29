@@ -69,3 +69,32 @@ Proposed only: `product_cat:mini-dolls`, `product_cat:full-body-dolls`, Woo glob
 - A second exact Rollback command and its independent Owner approval are required before any real deletion. Live PHP 137/503 interruption recovery is **NOT YET PASS** and must be contained/observed at Canary.
 
 No Dev product, taxonomy, attribute, image, order, payment, DNS or Production changes were performed in this source-only continuation.
+
+## Post-approval safe stop and exact-count hardening (2026-10-29)
+
+Owner authorized exactly four QA Draft-only products on Dev under Plan
+cfc3ead963a72e0aa44740d5. Adapter, CSV, plan and snapshot were staged to
+a private Hostinger directory outside the web root. Authorized WP-CLI Apply
+was blocked before dispatch by the execution channel's safety check (twice);
+no actual import was executed and no alternate route was attempted.
+Independent read-only Dev Woo checks returned no new SKU IDs, batch
+journal, lock or tagged IDs, zero public products and unchanged R7 baseline.
+Protected canonical snapshot SHA-256 remained
+58eed76c86f14c307b3ee8e12df51ee3ef6e8b94894a72cc6d2dbd95f5c925fd.
+
+A subsequent source-only review identified a gap: applied/replay batch
+state could be accepted with fewer than the approved row count if both
+created_count and tagged IDs agreed with each other but not with the Plan.
+The adapter's commit transition and replay guard now require equality with
+plan.total_rows, and reject invalid row-count bounds.
+
+PHP isolated guard tests increased from 25 to 28. The approved CSV, policy
+and protected snapshot are unchanged, so their checksum-derived Plan ID
+remains the same only while a fresh live snapshot matches. Any future
+allowed real execution must first verify that private Hostinger staging
+contains the latest reviewed guarded adapter source.
+
+Real Woo CRUD, variant price readback, batch idempotency and rollback remain
+UNTESTED. Gate C BLOCKED / R8-C OPEN; no auto retry, no bypass of tool safety,
+no Production, no merchant/payment work, no destructive rollback without
+separate Owner pass.

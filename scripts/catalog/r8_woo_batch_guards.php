@@ -70,10 +70,12 @@ function idm_r8_assert_batch_journal_ids($actual_ids, $journal) {
 
 /** Exact, read-only replay acceptance: a completed batch, no pending SKU,
  * and the journal, DB-tagged IDs and live additions must all match. */
-function idm_r8_assert_applied_batch_replay($journal, $tagged_ids, $live_added_ids) {
-    if (!is_array($journal) || ($journal['state'] ?? null) !== 'applied'
+function idm_r8_assert_applied_batch_replay($journal, $tagged_ids, $live_added_ids, $expected_count) {
+    if (!is_int($expected_count) || $expected_count < 1 || $expected_count > 25
+        || !is_array($journal) || ($journal['state'] ?? null) !== 'applied'
         || !empty($journal['pending_sku'])
-        || ($journal['created_count'] ?? null) !== count($tagged_ids)) {
+        || ($journal['created_count'] ?? null) !== $expected_count
+        || count($tagged_ids) !== $expected_count) {
         throw new RuntimeException('R8-C incomplete/unknown batch; replay blocked');
     }
     idm_r8_assert_batch_journal_ids($tagged_ids, $journal);
