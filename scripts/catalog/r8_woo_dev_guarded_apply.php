@@ -103,33 +103,22 @@ $live_snapshot = json_decode($live_json, true);
 if (!is_array($live_snapshot)) {
     throw new RuntimeException('R8-C live Woo snapshot unreadable');
 }
+require_once __DIR__.'/r8_woo_batch_guards.php';
 if ($action === 'apply') {
     if ($live_snapshot !== $source_snapshot) {
         throw new RuntimeException('R8-C LIVE SNAPSHOT CHANGED; obtain new Preview');
     }
 } else {
-    /* A successful apply necessarily adds products to the live snapshot.
-     * Ignore ONLY verified batch-tagged additions while preserving the exact
-     * original product, category, brand and attribute snapshot. */
-    $original_ids = array_fill_keys(array_map(static function($x) {
-        return (int)$x['id'];
-    }, $source_snapshot['products']), true);
-    $preserved = array();
-    foreach ($live_snapshot['products'] as $live_row) {
-        $live_id = (int)$live_row['id'];
-        if (isset($original_ids[$live_id])) {
-            $preserved[] = $live_row;
-            continue;
+    /* A successful apply changes inventory by adding this batch only. The
+     * pure guard verifies all original products, categories, brands and terms
+     * remain IDENTICAL and all new IDs belong to this exact batch. */
+    idm_r8_assert_live_baseline(
+        $source_snapshot, $live_snapshot, $id,
+        static function($live_id) {
+            $p = wc_get_product($live_id);
+            return $p ? (string)$p->get_meta('_idm_r8_batch_id', true) : '';
         }
-        $created = wc_get_product($live_id);
-        if (!$created || (string)$created->get_meta('_idm_r8_batch_id', true) !== $id) {
-            throw new RuntimeException('R8-C unrelated product added; rollback requires review');
-        }
-    }
-    $live_snapshot['products'] = $preserved;
-    if ($live_snapshot !== $source_snapshot) {
-        throw new RuntimeException('R8-C baseline products/terms changed; rollback requires review');
-    }
+    );
 }
 if ($action === 'apply') {
     if (!is_string($csv_path) || !is_file($csv_path) || is_link($csv_path)
@@ -360,20 +349,9 @@ try {
         } else {
             $ids = idm_r8_batch_ids($id);
             if (!$ids) { throw new RuntimeException('R8-C no batch-tagged records; manual review'); }
-            if (!in_array($journal['state'], array('in_progress','applied'), true)
-                || !is_array($journal['ids'] ?? null)) {
-                throw new RuntimeException('R8-C batch journal state invalid');
-            }
-            /* A missing tag or unexpected extra ID must NEVER authorize
-             * deletion of the remaining batch products. */
-            $journal_ids = array_map('intval', $journal['ids']);
-            $sorted_live = $ids;
-            sort($journal_ids, SORT_NUMERIC);
-            sort($sorted_live, SORT_NUMERIC);
-            if ($journal_ids !== $sorted_live
-                || count($sorted_live) !== count(array_unique($sorted_live))) {
-                throw new RuntimeException('R8-C batch IDs differ from journal; manual review');
-            }
+            /* Compare exact DB-tagged set with immutable per-batch journal.
+             * Missing or foreign items block ALL deletions. */
+            idm_r8_assert_batch_journal_ids($ids, $journal);
             /* Preflight ALL surviving products BEFORE deleting ANY. */
             global $wpdb;
             foreach ($ids as $pid) {
