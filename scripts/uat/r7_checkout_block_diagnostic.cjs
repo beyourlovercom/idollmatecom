@@ -106,7 +106,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const valErrors=val?.getValidationErrors?.()||{};
       const hasValidationErrors=val?.hasValidationErrors?.();
       const btn=document.querySelector('.wc-block-components-checkout-place-order-button');
-      const button={disabled:btn?.disabled,ariaDisabled:btn?.getAttribute('aria-disabled'),text:btn?.textContent?.trim()};
+      const button={disabled:btn?.disabled,ariaDisabled:btn?.getAttribute('aria-disabled'),text:btn?.textContent?.trim(),
+        reactOnClick: !!(btn && Object.keys(btn).some(k=>k.startsWith('__reactProps') && typeof btn[k]?.onClick==='function')),
+        reactPropsKeys:btn?Object.keys(btn).filter(k=>k.startsWith('__reactProps')).length:0};
       const boxes=[...document.querySelectorAll('input[type=checkbox]')].map(el=>({
         id:el.id,checked:el.checked,required:el.required,
         label:(document.querySelector('label[for="'+el.id+'"]')?.textContent||el.closest('label')?.textContent||'').trim().slice(0,90)
@@ -148,8 +150,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     if(!before.has_QA_gateway||!before.has_expected_total||before.missing.length)
       throw Error('Dev QA checkout preconditions unmet; not submitting');
     events.length=0;
+    await page.evaluate(()=>{window.__r7ClickCount=0; document.addEventListener('click',e=>{
+      if(e.target?.closest?.('.wc-block-components-checkout-place-order-button'))window.__r7ClickCount++;
+    },{capture:true});});
     await page.locator('.wc-block-components-checkout-place-order-button').click({timeout:12000});
-    await sleep(8500);
+    await sleep(3000);
+    const first=await state();
+    const sentCheckout=()=>events.some(e=>e.kind==='request' && e.path.includes('/wc/store/v1/checkout'));
+    console.log('R7_CLICK_FIRST',JSON.stringify({checkout:first.checkout,validationErrors:first.validationErrors,button:first.button,clickCount:await page.evaluate(()=>window.__r7ClickCount),submitted:sentCheckout()}));
+    if(!sentCheckout() && first.checkout?.status==='idle' && !first.checkout?.hasError && page.url().includes('/checkout/')){
+      // UI regression isolation: no programmatic store dispatch and never double-submit
+      await page.locator('.wc-block-components-checkout-place-order-button').click({timeout:12000});
+      await sleep(4700);
+      console.log('R7_CLICK_SECOND',JSON.stringify({after:(await state()).checkout,clickCount:await page.evaluate(()=>window.__r7ClickCount),submitted:sentCheckout()}));
+    }
     console.log('R7_CHECKOUT_AFTER',JSON.stringify(await state()));
     console.log('R7_CHECKOUT_EVENTS',JSON.stringify(events.slice(-45)));
     console.log('R7_CHECKOUT_TRANSITIONS',JSON.stringify(await page.evaluate(()=>window.__r7StateTransitions||[])));
