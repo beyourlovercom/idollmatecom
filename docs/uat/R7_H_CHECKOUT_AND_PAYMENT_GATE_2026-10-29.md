@@ -1,5 +1,5 @@
 # R7-H — Browser Checkout & Independent Payment TEST gate
-Date: 2026-10-29
+> **Latest update (2026-10-29 ~05:46 UTC):** Checkout Block successfully created a real Dev-only BACS test order on the **second** normal browser click. Store API `POST /wc/store/v1/checkout` HTTP **200**, redirect to `/checkout/order-received/25/`, Woo server debug log confirms actual processing. Test order #25 was deleted, full temporary configuration rollback independently verified. **First click no-op remains OPEN**, and separate provider-backed TEST payment/decline/webhook/refund remains BLOCKED. See [actual browser order evidence](R7_H_BROWSER_ORDER_25_PROOF_2026-10-29.md). Earlier diagnosis below is chronological evidence, not the final current status.\n\nDate: 2026-10-29
 State: **BLOCKED FOR LIVE RETEST: Hostinger PHP resource instability; merchant authorization not available**
 
 ## 1. Verified live Dev evidence — do not conflate failures
