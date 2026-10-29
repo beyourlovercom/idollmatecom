@@ -25,7 +25,7 @@ R8-E is not payment testing, a stock promise, or permission to publish products.
 
 ## Dev UAT checklist
 
-- Confirm installed plugin version 0.1.0 and active with WP/Woo version and current theme.
+- Confirm installed plugin version 0.1.1 and active with WP/Woo version and current theme.
 - Confirm WC archives 200, robots noindex/nofollow, canonical URLs correct, category links and filter present.
 - Confirm filters for tpe/silicone and invalid values; empty public results while no products are published; no disclosure of hidden Draft QA products.
 - Admin Woo manager preview: 2 parent/simple cards, filters categories 1/1 and materials 2/1, variation price range, valid preview links. Product detail native variation and responsive media placeholders; image count remains 0.
@@ -35,3 +35,14 @@ R8-E is not payment testing, a stock promise, or permission to publish products.
 ## Release status
 
 UAT results must be appended after executing real Dev checks, rather than inferred from passing source tests.
+
+## Genuine block-theme and Coming Soon compatibility correction
+
+Real anonymous HTTP on /shop/ and category URLs returned Woo's global Coming Soon block instead of
+the archive; no merchant filters can be visible to anonymous guests while that pre-existing gate is ON.
+This is expected and the gate MUST remain ON. Actual archive block template, inspected through
+get_block_template(), uses the WooCommerce Product Collection block, not classic Woo hooks.
+The 0.1.1 revision adds scoped query_loop_block_query_vars and render_block_woocommerce/product-collection
+integration for the inherited main archive block; it does not affect custom collections or other pages.
+This is supported by the official WordPress Query Loop hook and WooCommerce Product Collection
+implementation. Test with authenticated Woo administrator render, never by publishing QA products.

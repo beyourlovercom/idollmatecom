@@ -19,7 +19,7 @@ function test($result,$name):void{
 }
 require dirname(__DIR__).'/wordpress/plugins/idollmate-discovery/idollmate-discovery.php';
 
-test(IDM_DISCOVERY_VERSION==='0.1.0','Plugin version');
+test(IDM_DISCOVERY_VERSION==='0.1.1','Plugin version');
 test(count($GLOBALS['idm_hooks']['actions']['woocommerce_product_query']??[])===1,'Woo product query hook');
 test(count($GLOBALS['idm_hooks']['actions']['woocommerce_before_shop_loop']??[])===1,'Native Woo filter UI hook');
 test(count($GLOBALS['idm_hooks']['actions']['admin_menu']??[])===1,'Admin-only QA entry');
@@ -72,4 +72,22 @@ test($str==='','Nonarchive canonical untouched');
 $css=file_get_contents(dirname(__DIR__).'/wordpress/plugins/idollmate-discovery/assets/discovery.css');
 test(str_contains($css,'.idm-discovery') && str_contains($css,'@media(max-width:720px)'),'Responsive scoped styling');
 test(!preg_match('/(?:@import|url\s*\(|https?:\/\/)/i',$css),'No external asset fetches');
+test(count($GLOBALS['idm_hooks']['filters']['query_loop_block_query_vars']??[])===1,
+     'Woo Product Collection block query hook registered');
+test(count($GLOBALS['idm_hooks']['filters']['render_block_woocommerce/product-collection']??[])===1,
+     'Woo Product Collection filter UI hook registered');
+$GLOBALS['idm_archive']='shop';
+$block=(object)array('context'=>array('query'=>array('isProductCollectionBlock'=>true,'inherit'=>true)));
+$_GET['idm_material']='tpe';
+$block_query=idm_discovery_block_query_vars(array('post_type'=>'product','tax_query'=>$seed),$block,1);
+test(count($block_query['tax_query'])===2
+    && $block_query['tax_query'][0]===$seed[0]
+    && $block_query['tax_query'][1]['terms']===array('tpe'),'Block query facet preserves visibility');
+$block_query=idm_discovery_block_query_vars(array('post_type'=>'product'),(object)array('context'=>array('query'=>array('isProductCollectionBlock'=>true,'inherit'=>false))),1);
+test(!isset($block_query['tax_query']),'Noninherited Product Collection unaffected');
+$GLOBALS['idm_archive']='other';
+$block_query=idm_discovery_block_query_vars(array('post_type'=>'product'),$block,1);
+test(!isset($block_query['tax_query']),'Nonarchive collection unaffected');
+$out=idm_discovery_block_frontend('SAFE_BLOCK',array('blockName'=>'woocommerce/product-collection','attrs'=>array('query'=>array('inherit'=>true))),$block);
+test($out==='SAFE_BLOCK','Nonarchive block output untouched');
 echo 'R8_DISCOVERY_ISOLATED_TESTS='.$GLOBALS['idm_checks'].' PASS'.PHP_EOL;

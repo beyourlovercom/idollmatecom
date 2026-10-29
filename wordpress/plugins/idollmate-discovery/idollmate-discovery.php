@@ -2,13 +2,13 @@
 /**
  * Plugin Name: iDollmate Catalog Discovery
  * Description: Woo-native category/material discovery, SEO canonical and restricted R8 QA preview.
- * Version: 0.1.0
+ * Version: 0.1.1
  * Requires PHP: 8.1
  * Text Domain: idollmate-discovery
  * License: GPL-2.0-or-later
  */
 defined('ABSPATH') || exit;
-const IDM_DISCOVERY_VERSION = '0.1.0';
+const IDM_DISCOVERY_VERSION = '0.1.1';
 const IDM_DISCOVERY_BATCH = 'cfc3ead963a72e0aa44740d5';
 
 /* Root taxonomy and variation model belong to WooCommerce; no migrations,
@@ -50,6 +50,33 @@ function idm_discovery_product_query($query): void {
         is_array($existing) ? $existing : array(), $material
     ));
 }
+
+/* Woo 11.2 product archive templates render a Product Collection block.
+ * Classic archive hooks do NOT run in that block. Add a scoped frontend
+ * query facet and place the form before the inherited main collection. */
+function idm_discovery_block_query_vars(array $args, $block, $page): array {
+    if (is_admin() || !idm_discovery_archive()
+        || !is_object($block) || !isset($block->context['query'])
+        || !is_array($block->context['query'])) { return $args; }
+    $context=$block->context['query'];
+    if (empty($context['isProductCollectionBlock']) || empty($context['inherit'])
+        || ($args['post_type'] ?? 'product') !== 'product') { return $args; }
+    $material=idm_discovery_requested_material();
+    if ($material === '') { return $args; }
+    $args['tax_query']=idm_discovery_apply_material_tax_query(
+        is_array($args['tax_query']??null) ? $args['tax_query'] : array(),$material
+    );
+    return $args;
+}
+function idm_discovery_block_frontend($html, $parsed, $block) {
+    if (is_admin() || !idm_discovery_archive()
+        || !is_array($parsed) || ($parsed['blockName'] ?? '') !== 'woocommerce/product-collection'
+        || empty($parsed['attrs']['query']['inherit'])) { return $html; }
+    ob_start();
+    idm_discovery_filter_form();
+    return ob_get_clean().$html;
+}
+
 function idm_discovery_archive_base(): string {
     if (is_product_category()) {
         $term=get_queried_object();
@@ -61,7 +88,9 @@ function idm_discovery_archive_base(): string {
     return wc_get_page_permalink('shop');
 }
 function idm_discovery_filter_form(): void {
-    if (!idm_discovery_archive()) { return; }
+    static $rendered=false;
+    if ($rendered || !idm_discovery_archive()) { return; }
+    $rendered=true;
     $base = idm_discovery_archive_base();
     $material = idm_discovery_requested_material();
     $current = $material === '__invalid__' ? '' : $material;
@@ -242,3 +271,6 @@ add_action('admin_menu','idm_discovery_admin_qa_menu');
 add_action('admin_enqueue_scripts','idm_discovery_admin_style');
 add_action('wp_enqueue_scripts','idm_discovery_storefront_style',30);
 add_action('woocommerce_single_product_summary','idm_discovery_specs',25);
+
+add_filter('query_loop_block_query_vars','idm_discovery_block_query_vars',20,3);
+add_filter('render_block_woocommerce/product-collection','idm_discovery_block_frontend',20,3);
