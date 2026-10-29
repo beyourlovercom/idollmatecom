@@ -63,20 +63,34 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await page.waitForFunction(()=>!!document.querySelector('input[name=tmcp_checkbox_0_0].tcenabled'),
       null,{timeout:18000});
     await page.locator('input[name=tmcp_checkbox_0_0]').check({force:true});
+    await page.waitForFunction(()=>{
+      const v=document.querySelector('input.variation_id');
+      const btn=document.querySelector('button.single_add_to_cart_button');
+      const t=document.querySelector('.tm-final-totals')?.innerText||'';
+      return !!v && v.value && v.value!=='0' && !!btn && !btn.disabled &&
+        t.includes('1,148');
+    },null,{timeout:18000});
+    console.log('R7_PRODUCT_READY',JSON.stringify(await page.evaluate(()=>({
+      variation:document.querySelector('input.variation_id')?.value||'',
+      selected:document.querySelector('input[name=tmcp_checkbox_0_0]')?.checked,
+      total:(document.querySelector('.tm-final-totals')?.innerText||'').slice(0,140),
+      buttonDisabled:document.querySelector('button.single_add_to_cart_button')?.disabled
+    }))));
     await page.locator('button.single_add_to_cart_button').click();
-    await sleep(1900);
+    await sleep(2100);
     const cartApiCount=async()=>page.evaluate(async()=>{
       try{
         const r=await fetch('/wp-json/wc/store/v1/cart',{credentials:'same-origin',cache:'no-store'});
         const j=await r.json();
-        return {status:r.status(),items_count:j.items_count??null,items_length:Array.isArray(j.items)?j.items.length:null};
+        return {status:r.status,items_count:j.items_count??null,items_length:Array.isArray(j.items)?j.items.length:null};
       }catch(e){return {error:String(e).slice(0,120)}}
     });
     const afterAdd=await page.evaluate(()=>({path:location.pathname,
       notice:[...document.querySelectorAll('.woocommerce-message,.woocommerce-error')].map(e=>e.innerText.slice(0,140)).slice(0,4),
       htmlItem:document.body.innerText.includes('iDollmate R7 Variable QA')}));
     const sessionCookieNames=(await ctx.cookies(origin)).map(x=>x.name).filter(x=>/woocommerce|wp_woo|session|wordpress/i.test(x));
-    console.log('R7_AFTER_ADD_TO_CART',JSON.stringify({...afterAdd,store:await cartApiCount(),sessionCookieNames}));
+    console.log('R7_AFTER_ADD_TO_CART',JSON.stringify({...afterAdd,store:await cartApiCount(),sessionCookieNames,
+      lastRequests:events.slice(-12)}));
     // Session gate: native Woo cart must persist real variation + add-on
     // BEFORE testing checkout; an empty cart redirects Checkout to /cart/.
     const cartResp=await page.goto(origin+'/cart/?r7qa=20261029f1',{waitUntil:'domcontentloaded',timeout:35000});
