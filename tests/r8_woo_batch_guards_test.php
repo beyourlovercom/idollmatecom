@@ -25,8 +25,10 @@ $baseline = array(
     'blog_public'=>'0',
     'coming_soon'=>'yes',
     'products'=>array(
-        array('id'=>13,'sku'=>'IDM-R7-QA','slug'=>'r7-simple','status'=>'draft'),
-        array('id'=>15,'sku'=>'IDM-R7-VAR','slug'=>'r7-variant','status'=>'draft')
+        array('id'=>13,'sku'=>'IDM-R7-QA','slug'=>'r7-simple','status'=>'draft',
+              'integrity_sha256'=>hash('sha256','price=599|qty=2|asset=0')),
+        array('id'=>15,'sku'=>'IDM-R7-VAR','slug'=>'r7-variant','status'=>'draft',
+              'integrity_sha256'=>hash('sha256','price=999|qty=0|asset=0'))
     ),
     'categories'=>array('uncategorized','full-body-dolls'),
     'brands'=>array(),
@@ -56,6 +58,21 @@ blocked(function() use($baseline,$current,$owner) {
     $other['products'][0]['slug']='altered-r7-slug';
     idm_r8_assert_live_baseline($baseline,$other,'r8-aaa',$owner);
 },'BASELINE_PRODUCT_EDIT');
+blocked(function() use($baseline,$current,$owner) {
+    $old=$baseline;
+    unset($old['products'][0]['integrity_sha256']);
+    idm_r8_assert_live_baseline($old,$current,'r8-aaa',$owner);
+},'LEGACY_WEAK_BASELINE_REJECTED');
+blocked(function() use($baseline,$current,$owner) {
+    $other=$current;
+    $other['products'][0]['integrity_sha256']=hash('sha256','price=1|qty=2|asset=0');
+    idm_r8_assert_live_baseline($baseline,$other,'r8-aaa',$owner);
+},'BASELINE_PRICE_OR_STOCK_DIGEST_MUTATION');
+blocked(function() use($baseline,$current,$owner) {
+    $other=$current;
+    $other['products'][1]['integrity_sha256']=hash('sha256','changed-media-or-content');
+    idm_r8_assert_live_baseline($baseline,$other,'r8-aaa',$owner);
+},'BASELINE_MEDIA_OR_CONTENT_DIGEST_MUTATION');
 blocked(function() use($baseline,$current,$owner) {
     $other=$current;
     array_shift($other['products']);

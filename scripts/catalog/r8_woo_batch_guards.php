@@ -14,6 +14,13 @@ function idm_r8_assert_live_baseline($baseline, $current, $batch_id, $read_batch
         if (!isset($row['id']) || !is_int($row['id']) || isset($original_ids[$row['id']])) {
             throw new RuntimeException('R8-C invalid/duplicate baseline ID');
         }
+        /* Legacy six-field snapshots cannot protect R7 price/stock/media.
+         * Reject rather than permitting destructive rollback on weak baselines. */
+        if (!isset($row['integrity_sha256']) ||
+            !is_string($row['integrity_sha256']) ||
+            !preg_match('/^[a-f0-9]{64}$/D', $row['integrity_sha256'])) {
+            throw new RuntimeException('R8-C missing protected baseline digest; replan required');
+        }
         $original_ids[$row['id']] = true;
     }
     $preserved = array();

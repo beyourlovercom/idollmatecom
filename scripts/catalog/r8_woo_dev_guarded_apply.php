@@ -141,6 +141,15 @@ function idm_r8_fingerprint($p) {
     $fields = array(
         'id'=>(int)$p->get_id(), 'type'=>$p->get_type(), 'status'=>$p->get_status(),
         'name'=>$p->get_name(), 'slug'=>$p->get_slug(), 'sku'=>$p->get_sku(),
+        'post_modified_gmt'=>(string)get_post_field('post_modified_gmt', $p->get_id()),
+        'description'=>$p->get_description(), 'short_description'=>$p->get_short_description(),
+        'price'=>$p->get_price(), 'sale_price'=>$p->get_sale_price(),
+        'stock_status'=>$p->get_stock_status(),
+        'tax_status'=>$p->get_tax_status(), 'tax_class'=>$p->get_tax_class(),
+        'image_id'=>$p->get_image_id(),
+        'gallery_ids'=>method_exists($p, 'get_gallery_image_ids') ? $p->get_gallery_image_ids() : array(),
+        'brand_ids'=>taxonomy_exists('product_brand') ?
+            wp_get_object_terms($p->get_id(), 'product_brand', array('fields'=>'ids')) : array(),
         'parent_id'=>(int)$p->get_parent_id(), 'regular_price'=>$p->get_regular_price(),
         'manage_stock'=>$p->get_manage_stock(), 'stock_quantity'=>$p->get_stock_quantity(),
         'visibility'=>$p->get_catalog_visibility(), 'category_ids'=>$p->get_category_ids(),
@@ -196,7 +205,11 @@ function idm_r8_mark_and_save($p, $row, $batch_id) {
     $id = $p->save();
     if (!$id) { throw new RuntimeException('R8-C Woo save returned no product ID'); }
     $fresh = wc_get_product($id);
-    update_post_meta($id, '_idm_r8_import_fingerprint', idm_r8_fingerprint($fresh));
+    $fingerprint = idm_r8_fingerprint($fresh);
+    update_post_meta($id, '_idm_r8_import_fingerprint', $fingerprint);
+    if (get_post_meta($id, '_idm_r8_import_fingerprint', true) !== $fingerprint) {
+        throw new RuntimeException('R8-C fingerprint not persisted; manual reconcile required');
+    }
     return (int)$id;
 }
 function idm_r8_batch_ids($batch) {
@@ -311,9 +324,16 @@ try {
             if ($attrs) { $p->set_attributes($attrs); }
             $new_id = idm_r8_mark_and_save($p, $row, $id);
             if ($row['brand_slug']) {
-                wp_set_object_terms($new_id, array(idm_r8_term('product_brand', $row['brand_slug'])), 'product_brand');
-                update_post_meta($new_id, '_idm_r8_import_fingerprint',
-                                 idm_r8_fingerprint(wc_get_product($new_id)));
+                $brand_id = idm_r8_term('product_brand', $row['brand_slug']);
+                $assigned = wp_set_object_terms($new_id, array($brand_id), 'product_brand');
+                if (is_wp_error($assigned) || !in_array($brand_id, array_map('intval', $assigned), true)) {
+                    throw new RuntimeException('R8-C brand term assignment failed; manual reconcile required');
+                }
+                $fingerprint = idm_r8_fingerprint(wc_get_product($new_id));
+                update_post_meta($new_id, '_idm_r8_import_fingerprint', $fingerprint);
+                if (get_post_meta($new_id, '_idm_r8_import_fingerprint', true) !== $fingerprint) {
+                    throw new RuntimeException('R8-C final brand fingerprint persistence failed');
+                }
             }
             $journal['ids'][] = $new_id;
             $journal['created_count']++;

@@ -31,8 +31,48 @@ do {
     ));
     foreach ($ids as $id) {
         $product = wc_get_product($id);
-        if (!$product) { continue; }
+        if (!$product) {
+            throw new RuntimeException('R8 snapshot cannot safely inspect product record '.$id);
+        }
+        /* Capture a protected-field digest. A rollback must not ignore price,
+         * inventory, content, media, attribute or term-assignment edits to
+         * pre-existing R7 products merely because SKU/status stayed the same. */
+        $category_ids = array_map('intval', $product->get_category_ids());
+        sort($category_ids, SORT_NUMERIC);
+        $gallery_ids = method_exists($product, 'get_gallery_image_ids')
+            ? array_map('intval', $product->get_gallery_image_ids()) : array();
+        $brand_ids = taxonomy_exists('product_brand')
+            ? wp_get_object_terms($id, 'product_brand', array('fields'=>'ids')) : array();
+        if (is_wp_error($brand_ids)) { throw new RuntimeException('Brand term read failed'); }
+        $brand_ids = array_map('intval', $brand_ids);
+        sort($brand_ids, SORT_NUMERIC);
+        $protected = array(
+            'post_modified_gmt' => (string)get_post_field('post_modified_gmt', $id),
+            'name' => (string)$product->get_name(),
+            'description' => (string)$product->get_description(),
+            'short_description' => (string)$product->get_short_description(),
+            'price' => (string)$product->get_price(),
+            'regular_price' => (string)$product->get_regular_price(),
+            'sale_price' => (string)$product->get_sale_price(),
+            'manage_stock' => (bool)$product->get_manage_stock(),
+            'stock_quantity' => $product->get_stock_quantity(),
+            'stock_status' => (string)$product->get_stock_status(),
+            'tax_status' => (string)$product->get_tax_status(),
+            'tax_class' => (string)$product->get_tax_class(),
+            'visibility' => (string)$product->get_catalog_visibility(),
+            'category_ids' => $category_ids,
+            'brand_ids' => $brand_ids,
+            'attribute_data' => serialize($product->get_attributes()),
+            'image_id' => (int)$product->get_image_id(),
+            'gallery_ids' => $gallery_ids,
+            'source_meta' => array_map(static function($k) use ($product) {
+                return $product->get_meta($k, true);
+            }, array('_idm_fulfillment_mode','_idm_dispatch_region',
+                     '_idm_estimated_dispatch_days','_idm_reference_image_url',
+                     '_idm_height_cm','_idm_weight_kg')),
+        );
         $records[] = array(
+            'integrity_sha256' => hash('sha256', serialize($protected)),
             'id' => (int)$id,
             'sku' => (string)$product->get_sku(),
             'slug' => (string)$product->get_slug(),
