@@ -65,5 +65,5 @@ echo wp_json_encode(array(
     'products'=>$records,
     'categories'=>$term_slugs('product_cat'),
     'brands'=>$term_slugs('product_brand'),
-    'attributes'=>$attributes,
+    'attributes'=>(object)$attributes,
 ), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT).PHP_EOL;
