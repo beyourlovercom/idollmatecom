@@ -25,7 +25,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const browser = await chromium.launch({headless:true, executablePath:browserPath});
   const events = [];
   try {
-    const ctx = await browser.newContext({viewport:{width:1366,height:900},acceptDownloads:false});
+    const ctx = await browser.newContext({viewport:{width:1366,height:900},acceptDownloads:false,
+      extraHTTPHeaders:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
     await ctx.route(/\.(?:jpe?g|png|svg|webp|gif|avif)(?:\?.*)?$/i, route => route.abort());
     const page = await ctx.newPage();
     page.on('pageerror', err => events.push({kind:'js_error',message:String(err.message).slice(0,200)}));
@@ -55,7 +56,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       }
       events.push(item);
     });
-    const product=await page.goto(origin+'/product/idollmate-r7-variable-qa-not-for-sale/',
+    const product=await page.goto(origin+'/product/idollmate-r7-variable-qa-not-for-sale/?r7qa=20261029f1',
       {waitUntil:'domcontentloaded',timeout:35000});
     if (product.status()!==200 || page.url().indexOf(origin)!==0) throw Error('Product URL not valid Dev QA page');
     await page.selectOption('select[name=attribute_material]','TPE');
@@ -64,9 +65,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await page.locator('input[name=tmcp_checkbox_0_0]').check({force:true});
     await page.locator('button.single_add_to_cart_button').click();
     await sleep(1500);
-    const ch=await page.goto(origin+'/checkout/',{waitUntil:'domcontentloaded',timeout:35000});
+    const ch=await page.goto(origin+'/checkout/?r7qa=20261029f1',{waitUntil:'domcontentloaded',timeout:35000});
     if (ch.status()!==200) throw Error('Checkout HTTP '+ch.status());
-    await page.getByText('R7 TEST ONLY - DO NOT PAY').waitFor({timeout:20000});
+    const gatewayReady=await page.getByText('R7 TEST ONLY - DO NOT PAY').waitFor({timeout:20000}).then(()=>true).catch(()=>false);
+    if(!gatewayReady){
+      const diagnostic=await page.evaluate(()=>({title:document.title,path:location.pathname,
+        excerpt:document.body.innerText.slice(0,280),loaded:document.readyState,
+        wcb:!!document.querySelector('.wc-block-checkout')})).catch(()=>({unavailable:true}));
+      console.log('R7_GATEWAY_NOT_READY',JSON.stringify({status:ch.status(),
+        xCache:ch.headers()['x-litespeed-cache']||'',...diagnostic}));
+      throw Error('QA BACS gateway did not become ready; checkout submission intentionally blocked');
+    }
     const fill=async(id,value)=>{
       const field=page.locator('#'+id);
       if(!await field.count()) throw Error('Missing Checkout Block input '+id);
