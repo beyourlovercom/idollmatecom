@@ -69,3 +69,13 @@ Do not include product descriptions, unauthorized images, supplier secrets, bill
 - All development and QA remain **source-only** pending explicit Dev rollout approval; never merge R7 PR #3 or R8 without independent Owner `pass`.
 
 **Depends on:** [R7 closeout](../uat/R7_ENGINEERING_SCOPE_CLOSURE_AND_R8_HANDOFF_2026-10-29.md) and [R7 source ownership](R7_CATALOG_CONTRACT_V1.md).
+
+## Actual Dev baseline — read-only 2026-10-29
+
+Direct read-only WooCommerce API checks on `dev.idollmate.com` (no product modification):
+- WordPress `blog_public=0`; Woo Coming Soon `yes`.
+- Woo **top-level products = 2**: R7 QA simple product #13 (Draft), R7 QA variable parent #15 (Draft).
+- Woo **child variations = 2**: #16 TPE and #17 Silicone; internal native variation statuses are `publish`, but their **parent #15 is Draft**, and Commerce remains Coming Soon. **Do not misrepresent native child variation status as a publicly visible sellable product.** R8 CSV requires *proposed row status Draft*, whereas a later Woo importer may need Woo's internal variation status semantics; the controlling public visibility gate must be the parent product status.
+- Woo global attribute dictionaries: **0**; `product_cat` currently only `uncategorized`; **0** Brand terms.
+- Consequently none of the provisional R8 categories/attribute terms are installed. Any real R8-C catalog import must be preceded by a reviewed and approved taxonomy term creation step and independent cross-check of Woo SKU uniqueness including **variations**. No action to create terms is authorized by the source-only R8-A/B work.
+- Confirmed existing QA SKUs: `IDM-R7-QA-20261028`, `IDM-R7-VARIANT-QA-20261028`, `IDM-R7-VARIANT-QA-20261028-TPE`, `IDM-R7-VARIANT-QA-20261028-SILICONE`. The R8 importer must treat these as reserved and leave them untouched.
