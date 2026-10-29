@@ -135,7 +135,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         }
       };
       observe();
-      window.__r7CheckoutUnsub=data?.subscribe(observe);
+      window.__r7CheckoutUnsub=window.wp?.data?.subscribe(observe);
     });
     if(!before.has_QA_gateway||!before.has_expected_total||before.missing.length)
       throw Error('Dev QA checkout preconditions unmet; not submitting');
