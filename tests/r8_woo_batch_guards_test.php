@@ -143,4 +143,20 @@ blocked(function() use($completed) {
 blocked(function() use($completed) {
     idm_r8_assert_applied_batch_replay($completed,array(201,202),array(201,202),26);
 }, 'OVERLIMIT_EXPECTED_COUNT_REJECTED');
+$fixture = tempnam(sys_get_temp_dir(), 'idm_r8_snap_');
+if ($fixture === false) { throw new RuntimeException('Could not allocate mock snapshot'); }
+file_put_contents($fixture, '<?php $id = 17; echo json_encode(array("products"=>array(), "site"=>"https://dev.idollmate.com"));');
+$id = 'cfc3ead963a72e0aa44740d5';
+try {
+    $captured = idm_r8_capture_snapshot_isolated($fixture);
+    check($id === 'cfc3ead963a72e0aa44740d5',
+          'SNAPSHOT_INCLUDE_CANNOT_OVERWRITE_BATCH_ID');
+    check(($captured['site'] ?? null) === 'https://dev.idollmate.com',
+          'ISOLATED_CAPTURE_DECODES_JSON');
+} finally {
+    unlink($fixture);
+}
+blocked(static function() {
+    idm_r8_capture_snapshot_isolated('/not/a/real/path/idm_r8_snapshot.php');
+}, 'MISSING_SNAPSHOT_REJECTED');
 echo 'R8_PHP_GUARD_TESTS='.$pass.' PASS'.PHP_EOL;
