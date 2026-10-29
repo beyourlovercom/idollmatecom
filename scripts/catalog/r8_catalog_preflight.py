@@ -36,11 +36,13 @@ def valid_reference_image(url: str) -> bool:
         return False
     try:
         p = urlsplit(url)
+        hostname = p.hostname
+        port = p.port
     except ValueError:
         return False
     return (p.scheme == "https"
-            and p.hostname in ("yourdoll.com", "www.yourdoll.com")
-            and p.port is None and not p.username and not p.password
+            and hostname in ("yourdoll.com", "www.yourdoll.com")
+            and port is None and not p.username and not p.password
             and not p.query and not p.fragment
             and bool(IMAGE_PATH_RE.fullmatch(p.path))
             and ".." not in p.path and "\\" not in p.path)
@@ -50,7 +52,7 @@ def safe_cell(value: str, *, limit: int = 200) -> bool:
     if len(value) > limit or "\x00" in value or "\r" in value or "\n" in value:
         return False
     # Guard cells that are commonly re-exported to Excel; no formula execution.
-    if value.lstrip().startswith(("=", "+", "@")):
+    if value.lstrip().startswith(("=", "+", "-", "@")):
         return False
     return True
 
@@ -90,6 +92,7 @@ def preflight(path: Path, *, existing_skus: set[str] | None = None,
         "total_rows": 0, "type_counts": {"simple": 0, "variable": 0, "variation": 0},
         "error_count": 0, "warning_count": 0, "errors": [], "warnings": [],
         "preview": [], "readonly": True, "can_import": False,
+        "import_executed": False, "requires_owner_approval": True,
     }
 
     def note(kind: str, line: int, sku: str, message: str) -> None:
@@ -110,7 +113,7 @@ def preflight(path: Path, *, existing_skus: set[str] | None = None,
     product_rows: dict[str, dict] = {}
     variations: list[tuple[int, dict]] = []
     used_combos: set[tuple[str, str, str]] = set()
-    existing_skus = existing_skus or set()
+    existing_skus = {sku.casefold() for sku in (existing_skus or set())}
 
     csv.field_size_limit(100000)
     try:
@@ -147,11 +150,12 @@ def preflight(path: Path, *, existing_skus: set[str] | None = None,
                         note("error", line, sku, "Unsafe or overlong field: " + k)
                 if not SKU_RE.fullmatch(sku):
                     note("error", line, sku, "SKU must be 3-64 ASCII letters/numbers/._-")
-                if sku in sku_lines:
-                    note("error", line, sku, "Duplicate SKU; first row=" + str(sku_lines[sku]))
+                sku_key = sku.casefold()
+                if sku_key in sku_lines:
+                    note("error", line, sku, "Duplicate SKU (case-insensitive); first row=" + str(sku_lines[sku_key]))
                 elif sku:
-                    sku_lines[sku] = line
-                if sku in existing_skus:
+                    sku_lines[sku_key] = line
+                if sku_key in existing_skus:
                     note("error", line, sku, "SKU conflicts with existing Woo inventory snapshot")
                 if rtype not in policy["row_types"]:
                     note("error", line, sku, "Unsupported row_type")
@@ -248,7 +252,7 @@ def preflight(path: Path, *, existing_skus: set[str] | None = None,
             note("error", line, sku, "Factory MTO variation must not invent stock")
     for sku, row in product_rows.items():
         if row["row_type"] == "variable" and sku not in parents_with_children:
-            note("error", sku_lines.get(sku, 0), sku, "Variable parent has no variations")
+            note("error", sku_lines.get(sku.casefold(), 0), sku, "Variable parent has no variations")
     report["can_import"] = report["error_count"] == 0 and report["total_rows"] > 0
     return report
 
