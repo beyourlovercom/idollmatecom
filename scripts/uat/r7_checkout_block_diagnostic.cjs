@@ -95,6 +95,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         const p=data?.select('wc/store/payment');
         payment={status:p?.getPaymentStatus?.(), active:p?.getActivePaymentMethod?.()};
       }catch(e){payment={read_error:String(e).slice(0,100)};}
+      const val=data?.select('wc/store/validation');
+      const valErrors=val?.getValidationErrors?.()||{};
+      const btn=document.querySelector('.wc-block-components-checkout-place-order-button');
+      const button={disabled:btn?.disabled,ariaDisabled:btn?.getAttribute('aria-disabled'),text:btn?.textContent?.trim()};
       const boxes=[...document.querySelectorAll('input[type=checkbox]')].map(el=>({
         id:el.id,checked:el.checked,required:el.required,
         label:(document.querySelector('label[for="'+el.id+'"]')?.textContent||el.closest('label')?.textContent||'').trim().slice(0,90)
@@ -110,11 +114,29 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       } catch(e) { cartTotals={read_error:String(e).slice(0,110)}; }
       const prices=(document.body.innerText.match(/\\$\\s*[\\d,.]+/g)||[]).slice(-14);
       const overview=(document.querySelector('.wc-block-components-order-summary,.wc-block-components-totals-wrapper')?.innerText||'').slice(-600);
-      return {url:location.pathname,checkout,payment,boxes,missing,cartTotals,customer,prices,overview,has_QA_gateway:document.body.innerText.includes('R7 TEST ONLY - DO NOT PAY'),
+      return {url:location.pathname,checkout,payment,validationErrors:valErrors,button,boxes,missing,cartTotals,customer,prices,overview,has_QA_gateway:document.body.innerText.includes('R7 TEST ONLY - DO NOT PAY'),
         has_expected_total:document.body.innerText.includes('$1,348.00')};
     });
     const before=await state();
     console.log('R7_CHECKOUT_BEFORE',JSON.stringify(before));
+    await page.evaluate(()=>{
+      window.__r7StateTransitions=[];
+      let last='';
+      const observe=()=>{
+        const data=window.wp?.data;
+        const checkout=data?.select('wc/store/checkout');
+        const payment=data?.select('wc/store/payment');
+        const validation=data?.select('wc/store/validation');
+        const state={checkout:checkout?.getCheckoutStatus?.(),payment:payment?.getPaymentStatus?.(),
+          has_error:checkout?.hasError?.(),validation:validation?.getValidationErrors?.()};
+        const fingerprint=JSON.stringify(state);
+        if(fingerprint!==last && window.__r7StateTransitions.length<50){
+          last=fingerprint;window.__r7StateTransitions.push(state);
+        }
+      };
+      observe();
+      window.__r7CheckoutUnsub=data?.subscribe(observe);
+    });
     if(!before.has_QA_gateway||!before.has_expected_total||before.missing.length)
       throw Error('Dev QA checkout preconditions unmet; not submitting');
     events.length=0;
@@ -122,6 +144,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(8500);
     console.log('R7_CHECKOUT_AFTER',JSON.stringify(await state()));
     console.log('R7_CHECKOUT_EVENTS',JSON.stringify(events.slice(-45)));
+    console.log('R7_CHECKOUT_TRANSITIONS',JSON.stringify(await page.evaluate(()=>window.__r7StateTransitions||[])));
+    console.log('R7_BUTTON_FINAL',JSON.stringify(await page.locator('.wc-block-components-checkout-place-order-button').evaluate(el=>({
+      disabled:el.disabled,ariaDisabled:el.getAttribute('aria-disabled'),text:el.textContent?.trim(),
+      type:el.getAttribute('type'),pointerEvents:getComputedStyle(el).pointerEvents
+    }))));
     console.log('R7_CHECKOUT_ORDER_RECEIVED',/order-received|order-confirmation/.test(page.url()));
     await ctx.close();
   } finally {await browser.close();}
