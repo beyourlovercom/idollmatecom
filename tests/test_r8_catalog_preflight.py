@@ -57,6 +57,8 @@ class PreflightTests(unittest.TestCase):
         r = pre.preflight(f)
         self.assertTrue(r["can_import"], self.reasons(r))
         self.assertTrue(r["readonly"])
+        self.assertFalse(r["import_executed"])
+        self.assertTrue(r["requires_owner_approval"])
         self.assertEqual(r["total_rows"], 1)
         self.assertEqual(r["source_sha256"], hashlib.sha256(content).hexdigest())
         self.assertEqual(content, f.read_bytes())
@@ -78,6 +80,20 @@ class PreflightTests(unittest.TestCase):
         r = self.run_rows([p, dict(p)])
         self.assertFalse(r["can_import"])
         self.assertIn("Duplicate SKU", self.reasons(r))
+
+    def test_case_insensitive_woo_sku_collision(self):
+        lower = product("IDM-a001")
+        upper = product("IDM-A001", slug="other-original-title")
+        r = self.run_rows([lower, upper])
+        self.assertIn("Duplicate SKU", self.reasons(r))
+        existing = self.run_rows([lower], existing_skus={"idm-A001"})
+        self.assertIn("existing Woo inventory", self.reasons(existing))
+
+    def test_invalid_url_port_does_not_crash(self):
+        self.assertFalse(pre.valid_reference_image(
+            "https://www.yourdoll.com:invalid/wp-content/uploads/a.jpg"))
+        self.assertFalse(pre.valid_reference_image(
+            "https://www.yourdoll.com:443/wp-content/uploads/a.jpg"))
 
     def test_existing_sku_conflict(self):
         r = self.run_rows([product()], existing_skus={"IDM-0001"})
