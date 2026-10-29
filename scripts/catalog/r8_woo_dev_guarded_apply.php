@@ -12,7 +12,8 @@ if (PHP_SAPI !== 'cli' || !defined('WP_CLI') || !WP_CLI) {
 if (get_option('siteurl') !== 'https://dev.idollmate.com'
     || (string)get_option('blog_public') !== '0'
     || (string)get_option('woocommerce_coming_soon') !== 'yes'
-    || !class_exists('WooCommerce')) {
+    || !class_exists('WooCommerce')
+    || get_woocommerce_currency() !== 'USD') {
     throw new RuntimeException('R8-C blocked: protected Dev WooCommerce only');
 }
 $action = getenv('R8_ACTION');
@@ -260,7 +261,9 @@ try {
         $journal = array('state'=>'in_progress', 'site'=>'https://dev.idollmate.com',
                          'csv_sha256'=>$plan['source_sha256'], 'ids'=>array(),
                          'created_count'=>0);
-        add_option($batch_key, $journal, '', false);
+        if (!add_option($batch_key, $journal, '', false)) {
+            throw new RuntimeException('R8-C journal creation failed; no products written');
+        }
         $parent_created = array();
         foreach ($parent_rows as $row) {
             $p = $row['row_type'] === 'variable' ? new WC_Product_Variable() : new WC_Product_Simple();
@@ -314,7 +317,9 @@ try {
             }
             $journal['ids'][] = $new_id;
             $journal['created_count']++;
-            update_option($batch_key, $journal, false);
+            if (!update_option($batch_key, $journal, false)) {
+                throw new RuntimeException('R8-C journal persistence failed; manual reconcile required');
+            }
             $parent_created[$row['sku']] = $new_id;
         }
         foreach ($children as $row) {
@@ -335,7 +340,9 @@ try {
             $new_id = idm_r8_mark_and_save($p, $row, $id);
             $journal['ids'][] = $new_id;
             $journal['created_count']++;
-            update_option($batch_key, $journal, false);
+            if (!update_option($batch_key, $journal, false)) {
+                throw new RuntimeException('R8-C journal persistence failed; manual reconcile required');
+            }
         }
         $journal['state'] = 'applied';
         update_option($batch_key, $journal, false);
@@ -386,7 +393,9 @@ try {
             }
             $journal['state'] = 'rolled_back';
             $journal['deleted_count'] = count($ids);
-            update_option($batch_key, $journal, false);
+            if (!update_option($batch_key, $journal, false)) {
+                throw new RuntimeException('R8-C journal persistence failed; manual reconcile required');
+            }
             echo 'R8_DEV_ROLLBACK_COMPLETE batch='.$id.' deleted='.count($ids).PHP_EOL;
         }
     }
