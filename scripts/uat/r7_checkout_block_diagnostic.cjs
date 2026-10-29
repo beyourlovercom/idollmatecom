@@ -63,13 +63,24 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await page.waitForFunction(()=>!!document.querySelector('input[name=tmcp_checkbox_0_0].tcenabled'),
       null,{timeout:18000});
     await page.locator('input[name=tmcp_checkbox_0_0]').check({force:true});
-    await page.waitForFunction(()=>{
+    const variationReady=await page.waitForFunction(()=>{
       const v=document.querySelector('input.variation_id');
       const btn=document.querySelector('button.single_add_to_cart_button');
-      const t=document.querySelector('.tm-final-totals')?.innerText||'';
-      return !!v && v.value && v.value!=='0' && !!btn && !btn.disabled &&
-        t.includes('1,148');
-    },null,{timeout:18000});
+      const opt=document.querySelector('input[name=tmcp_checkbox_0_0]');
+      return !!v && v.value && v.value!=='0' && !!btn && !btn.disabled && !!opt?.checked;
+    },null,{timeout:18000}).then(()=>true).catch(()=>false);
+    if(!variationReady){
+      console.log('R7_PRODUCT_NOT_READY',JSON.stringify(await page.evaluate(()=>({
+        variation:document.querySelector('input.variation_id')?.value||'',
+        checkbox:document.querySelector('input[name=tmcp_checkbox_0_0]')?.checked,
+        enabled:document.querySelector('input[name=tmcp_checkbox_0_0]')?.className,
+        total:(document.querySelector('.tm-final-totals')?.innerText||'').slice(0,160),
+        buttonDisabled:document.querySelector('button.single_add_to_cart_button')?.disabled,
+        attributes:[...document.querySelectorAll('select[name^=attribute]')].map(e=>({name:e.name,value:e.value}))
+      }))));
+      throw Error('Woo variation did not become ready; no cart or checkout requested');
+    }
+    await sleep(700);
     console.log('R7_PRODUCT_READY',JSON.stringify(await page.evaluate(()=>({
       variation:document.querySelector('input.variation_id')?.value||'',
       selected:document.querySelector('input[name=tmcp_checkbox_0_0]')?.checked,
