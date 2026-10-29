@@ -1,0 +1,345 @@
+<?php
+/**
+ * iDollmate R8-C source-only WP-CLI guarded Woo Draft import/rollback adapter.
+ *
+ * NOT installed, NOT activated, NOT run in Dev. NEVER production.
+ * Requires a later independent Owner pass and a complete live revalidation.
+ */
+defined('ABSPATH') || exit;
+if (PHP_SAPI !== 'cli' || !defined('WP_CLI') || !WP_CLI) {
+    throw new RuntimeException('R8-C CLI only');
+}
+if (get_option('siteurl') !== 'https://dev.idollmate.com'
+    || (string)get_option('blog_public') !== '0'
+    || (string)get_option('woocommerce_coming_soon') !== 'yes'
+    || !class_exists('WooCommerce')) {
+    throw new RuntimeException('R8-C blocked: protected Dev WooCommerce only');
+}
+$action = getenv('R8_ACTION');
+if (!in_array($action, array('apply', 'rollback'), true)) {
+    throw new RuntimeException('R8-C action must be apply or rollback');
+}
+$plan_path = getenv('R8_PLAN_PATH');
+$csv_path = getenv('R8_CSV_PATH');
+$snapshot_path = getenv('R8_SNAPSHOT_PATH');
+$script_dir = __DIR__;
+foreach (array($plan_path,$snapshot_path) as $path) {
+    if (!is_string($path) || !is_file($path) || is_link($path)) {
+        throw new RuntimeException('R8-C missing or symlink input');
+    }
+}
+$plan = json_decode(file_get_contents($plan_path), true);
+$source_snapshot = json_decode(file_get_contents($snapshot_path), true);
+if (!is_array($plan) || $plan['schema'] !== 'r8-c-v1'
+    || $plan['site'] !== 'https://dev.idollmate.com'
+    || $plan['ready_for_owner_review'] !== true
+    || $plan['blocker_count'] !== 0
+    || $plan['error_count'] !== 0 || $plan['simulation_only'] !== true
+    || $plan['update_existing'] !== 0 || $plan['publish'] !== 0
+    || $plan['delete_existing'] !== 0) {
+    throw new RuntimeException('R8-C plan is blocked, stale format or not draft-only');
+}
+$id = (string)$plan['plan_id'];
+if (!preg_match('/^[a-f0-9]{24}$/D', $id)) {
+    throw new RuntimeException('R8-C invalid batch id');
+}
+if (getenv('R8_OWNER_DEV_WRITE_PASS') !== 'R8-OWNER-PASS-'.$id) {
+    throw new RuntimeException('R8-C independent Owner Dev write gate NOT granted');
+}
+$required_phrase = $action === 'apply'
+    ? 'R8 CONFIRM '.$id.' '.$plan['total_rows']
+    : 'R8 ROLLBACK '.$id;
+if (getenv('R8_CONFIRM_PHRASE') !== $required_phrase) {
+    throw new RuntimeException('R8-C typed confirmation phrase mismatch');
+}
+if (!is_array($source_snapshot) || $source_snapshot['site'] !== 'https://dev.idollmate.com') {
+    throw new RuntimeException('R8-C wrong snapshot');
+}
+/* The read-only snapshot emitter is a separately reviewed source file, staged
+ * beside this script only after the new Dev write approval. */
+$snapshot_script = $script_dir.'/r8_woo_dev_snapshot.php';
+if (!is_file($snapshot_script)) {
+    throw new RuntimeException('R8-C snapshot implementation missing');
+}
+ob_start();
+try {
+    require $snapshot_script;
+    $live_json = ob_get_clean();
+} catch (Throwable $e) {
+    ob_end_clean();
+    throw $e;
+}
+$live_snapshot = json_decode($live_json, true);
+if (!is_array($live_snapshot) || $live_snapshot != $source_snapshot) {
+    throw new RuntimeException('R8-C LIVE SNAPSHOT CHANGED; obtain new Preview');
+}
+if ($action === 'apply') {
+    if (!is_string($csv_path) || !is_file($csv_path) || is_link($csv_path)
+        || filesize($csv_path) > 20000000
+        || !hash_equals($plan['source_sha256'], hash_file('sha256', $csv_path))) {
+        throw new RuntimeException('R8-C source CSV changed/missing');
+    }
+    if ($plan['total_rows'] < 1 || $plan['total_rows'] > 25) {
+        throw new RuntimeException('R8-C first-Dev canary limit: 1-25 rows only');
+    }
+}
+$batch_key = 'idm_r8_batch_'.$id;
+$lock_key = 'idm_r8_lock_'.$id;
+if (!add_option($lock_key, (string)time(), '', false)) {
+    throw new RuntimeException('R8-C batch already locked; manual recovery required');
+}
+$lock_acquired = true;
+function idm_r8_fingerprint($p) {
+    $fields = array(
+        'id'=>(int)$p->get_id(), 'type'=>$p->get_type(), 'status'=>$p->get_status(),
+        'name'=>$p->get_name(), 'slug'=>$p->get_slug(), 'sku'=>$p->get_sku(),
+        'parent_id'=>(int)$p->get_parent_id(), 'regular_price'=>$p->get_regular_price(),
+        'manage_stock'=>$p->get_manage_stock(), 'stock_quantity'=>$p->get_stock_quantity(),
+        'visibility'=>$p->get_catalog_visibility(), 'category_ids'=>$p->get_category_ids(),
+        'attributes'=>serialize($p->get_attributes()),
+        'fulfillment'=>$p->get_meta('_idm_fulfillment_mode', true),
+        'dispatch'=>$p->get_meta('_idm_dispatch_region', true),
+        'lead_days'=>$p->get_meta('_idm_estimated_dispatch_days', true),
+        'reference_url'=>$p->get_meta('_idm_reference_image_url', true),
+        'spec_height'=>$p->get_meta('_idm_height_cm', true),
+        'spec_weight'=>$p->get_meta('_idm_weight_kg', true),
+    );
+    return hash('sha256', serialize($fields));
+}
+function idm_r8_rows($path) {
+    $f = fopen($path, 'rb');
+    if (!$f) { throw new RuntimeException('Cannot read CSV'); }
+    $expected = array(
+        'sku','row_type','parent_sku','title','slug','category_slug','brand_slug',
+        'material','size_code','height_cm','weight_kg','fulfillment_mode',
+        'dispatch_region','lead_days','price_usd','stock_quantity',
+        'content_origin','source_ref','reference_image_url','product_status'
+    );
+    $header = fgetcsv($f);
+    if ($header !== $expected) { fclose($f); throw new RuntimeException('R8-C CSV header mismatch'); }
+    $out = array();
+    while (($values = fgetcsv($f)) !== false) {
+        if (count($values) !== count($expected)) {
+            fclose($f); throw new RuntimeException('R8-C CSV row malformed');
+        }
+        $row = array_combine($expected, array_map('trim', $values));
+        $out[] = $row;
+        if (count($out) > 25) { fclose($f); throw new RuntimeException('R8-C too many rows'); }
+    }
+    fclose($f);
+    return $out;
+}
+function idm_r8_term($taxonomy, $slug) {
+    if (!taxonomy_exists($taxonomy)) {
+        throw new RuntimeException('R8-C taxonomy not installed: '.$taxonomy);
+    }
+    $term = get_term_by('slug', $slug, $taxonomy);
+    if (!$term || is_wp_error($term)) {
+        throw new RuntimeException('R8-C term not installed: '.$taxonomy.':'.$slug);
+    }
+    return (int)$term->term_id;
+}
+function idm_r8_mark_and_save($p, $row, $batch_id) {
+    $p->update_meta_data('_idm_r8_batch_id', $batch_id);
+    $p->update_meta_data('_idm_r8_source_id', $row['source_ref']);
+    if ($row['reference_image_url'] !== '') {
+        $p->update_meta_data('_idm_reference_image_url', $row['reference_image_url']);
+    }
+    $id = $p->save();
+    if (!$id) { throw new RuntimeException('R8-C Woo save returned no product ID'); }
+    $fresh = wc_get_product($id);
+    update_post_meta($id, '_idm_r8_import_fingerprint', idm_r8_fingerprint($fresh));
+    return (int)$id;
+}
+function idm_r8_batch_ids($batch) {
+    global $wpdb;
+    return array_map('intval', $wpdb->get_col($wpdb->prepare(
+        "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %s",
+        '_idm_r8_batch_id', $batch
+    )));
+}
+try {
+    $journal = get_option($batch_key);
+    if ($action === 'apply') {
+        if ($journal !== false || idm_r8_batch_ids($id)) {
+            throw new RuntimeException('R8-C batch already exists; no automatic retry/overwrite');
+        }
+        $rows = idm_r8_rows($csv_path);
+        if (count($rows) !== (int)$plan['total_rows']) {
+            throw new RuntimeException('R8-C CSV row count mismatch');
+        }
+        /* Perform full duplicate/term/option sanity precheck BEFORE first write. */
+        $unique = array();
+        $parent_rows = array();
+        $children = array();
+        foreach ($rows as $row) {
+            $sku = $row['sku']; $k = strtolower($sku);
+            if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/D', $sku)
+                || isset($unique[$k]) || wc_get_product_id_by_sku($sku)
+                || $row['product_status'] !== 'draft'
+                || !in_array($row['row_type'], array('simple','variable','variation'), true)
+                || !in_array($row['content_origin'], array('original','licensed'), true)
+                || $row['reference_image_url'] !== '') {
+                /* First canary refuses ALL third-party URLs, including reference-only,
+                 * to ensure no unauthorized customer asset can enter the Woo site. */
+                throw new RuntimeException('R8-C unauthorized SKU/status/reference: '.$sku);
+            }
+            $unique[$k] = true;
+            if ($row['row_type'] === 'variation') {
+                $children[] = $row;
+                if ($row['material']) { idm_r8_term('pa_material', $row['material']); }
+                if ($row['size_code']) { idm_r8_term('pa_size_code', $row['size_code']); }
+            } else {
+                idm_r8_term('product_cat', $row['category_slug']);
+                if ($row['brand_slug']) { idm_r8_term('product_brand', $row['brand_slug']); }
+                if ($row['material']) { idm_r8_term('pa_material', $row['material']); }
+                $parent_rows[] = $row;
+            }
+            if ($row['row_type'] !== 'variable'
+                && (!is_numeric($row['price_usd']) || (float)$row['price_usd'] <= 0)) {
+                throw new RuntimeException('R8-C missing/invalid sale price');
+            }
+        }
+        $parent_skus = array();
+        foreach ($parent_rows as $row) {
+            $parent_skus[strtolower($row['sku'])] = $row;
+        }
+        foreach ($children as $row) {
+            $parent = $parent_skus[strtolower($row['parent_sku'])] ?? null;
+            if (!$parent || $parent['row_type'] !== 'variable') {
+                throw new RuntimeException('R8-C orphan variation');
+            }
+        }
+        $journal = array('state'=>'in_progress', 'site'=>'https://dev.idollmate.com',
+                         'csv_sha256'=>$plan['source_sha256'], 'ids'=>array(),
+                         'created_count'=>0);
+        add_option($batch_key, $journal, '', false);
+        $parent_created = array();
+        foreach ($parent_rows as $row) {
+            $p = $row['row_type'] === 'variable' ? new WC_Product_Variable() : new WC_Product_Simple();
+            $p->set_name($row['title']);
+            $p->set_slug($row['slug']);
+            $p->set_sku($row['sku']);
+            $p->set_status('draft');
+            $p->set_catalog_visibility('hidden');
+            $p->set_category_ids(array(idm_r8_term('product_cat', $row['category_slug'])));
+            if ($row['row_type'] === 'simple') { $p->set_regular_price($row['price_usd']); }
+            if ($row['fulfillment_mode'] === 'local_stock' && $row['row_type'] === 'simple') {
+                $p->set_manage_stock(true);
+                $p->set_stock_quantity((int)$row['stock_quantity']);
+            }
+            $p->update_meta_data('_idm_fulfillment_mode', $row['fulfillment_mode']);
+            $p->update_meta_data('_idm_dispatch_region', $row['dispatch_region']);
+            if ($row['lead_days'] !== '') {
+                $p->update_meta_data('_idm_estimated_dispatch_days', (int)$row['lead_days']);
+            }
+            if ($row['height_cm'] !== '') { $p->update_meta_data('_idm_height_cm', $row['height_cm']); }
+            if ($row['weight_kg'] !== '') { $p->update_meta_data('_idm_weight_kg', $row['weight_kg']); }
+            $attrs = array();
+            foreach (array('material'=>'pa_material', 'size_code'=>'pa_size_code') as $key=>$tax) {
+                $slugs = array();
+                if ($row[$key] !== '') { $slugs[] = $row[$key]; }
+                if ($row['row_type'] === 'variable') {
+                    foreach ($children as $child) {
+                        if ($child['parent_sku'] === $row['sku'] && $child[$key] !== '') {
+                            $slugs[] = $child[$key];
+                        }
+                    }
+                }
+                if ($slugs) {
+                    $a = new WC_Product_Attribute();
+                    $a->set_id(wc_attribute_taxonomy_id_by_name($tax));
+                    $a->set_name($tax);
+                    $a->set_options(array_map(static function($v) use ($tax) {
+                        return idm_r8_term($tax, $v);
+                    }, array_unique($slugs)));
+                    $a->set_visible(true);
+                    $a->set_variation($row['row_type'] === 'variable');
+                    $attrs[$tax] = $a;
+                }
+            }
+            if ($attrs) { $p->set_attributes($attrs); }
+            $new_id = idm_r8_mark_and_save($p, $row, $id);
+            if ($row['brand_slug']) {
+                wp_set_object_terms($new_id, array(idm_r8_term('product_brand', $row['brand_slug'])), 'product_brand');
+                update_post_meta($new_id, '_idm_r8_import_fingerprint',
+                                 idm_r8_fingerprint(wc_get_product($new_id)));
+            }
+            $journal['ids'][] = $new_id;
+            $journal['created_count']++;
+            update_option($batch_key, $journal, false);
+            $parent_created[$row['sku']] = $new_id;
+        }
+        foreach ($children as $row) {
+            $p = new WC_Product_Variation();
+            $p->set_parent_id($parent_created[$row['parent_sku']]);
+            $p->set_sku($row['sku']);
+            $p->set_status('publish'); // Woo internal variation status; parent remains Draft
+            $p->set_regular_price($row['price_usd']);
+            $attr = array();
+            if ($row['material']) { $attr['pa_material'] = $row['material']; }
+            if ($row['size_code']) { $attr['pa_size_code'] = $row['size_code']; }
+            $p->set_attributes($attr);
+            $parent = $parent_skus[strtolower($row['parent_sku'])];
+            if ($parent['fulfillment_mode'] === 'local_stock') {
+                $p->set_manage_stock(true);
+                $p->set_stock_quantity((int)$row['stock_quantity']);
+            }
+            $new_id = idm_r8_mark_and_save($p, $row, $id);
+            $journal['ids'][] = $new_id;
+            $journal['created_count']++;
+            update_option($batch_key, $journal, false);
+        }
+        $journal['state'] = 'applied';
+        update_option($batch_key, $journal, false);
+        echo 'R8_DEV_APPLY_COMPLETE batch='.$id.' created='.$journal['created_count'].PHP_EOL;
+    } else {
+        if (!is_array($journal) || $journal['site'] !== 'https://dev.idollmate.com') {
+            throw new RuntimeException('R8-C unknown/unowned rollback batch');
+        }
+        if ($journal['state'] === 'rolled_back') {
+            echo 'R8_DEV_ROLLBACK_ALREADY_COMPLETE'.PHP_EOL;
+        } else {
+            $ids = idm_r8_batch_ids($id);
+            if (!$ids) { throw new RuntimeException('R8-C no batch-tagged records; manual review'); }
+            /* Preflight ALL surviving products BEFORE deleting ANY. */
+            global $wpdb;
+            foreach ($ids as $pid) {
+                $p = wc_get_product($pid);
+                if (!$p || (string)$p->get_meta('_idm_r8_batch_id', true) !== $id
+                    || ($p->get_type() !== 'variation' && $p->get_status() !== 'draft')
+                    || ($p->get_type() === 'variation'
+                        && wc_get_product($p->get_parent_id())->get_status() !== 'draft')
+                    || get_post_meta($pid, '_idm_r8_import_fingerprint', true)
+                        !== idm_r8_fingerprint($p)) {
+                    throw new RuntimeException('R8-C product changed; rollback aborted before deletion');
+                }
+                $references = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}woocommerce_order_itemmeta
+                       WHERE meta_key IN ('_product_id','_variation_id') AND meta_value=%s",
+                    (string)$pid
+                ));
+                if ((int)$references > 0) {
+                    throw new RuntimeException('R8-C product referenced in an order; rollback forbidden');
+                }
+            }
+            usort($ids, static function($a, $b) {
+                $aa = wc_get_product($a); $bb = wc_get_product($b);
+                return ($aa->get_type() === 'variation' ? -1 : 1)
+                     <=> ($bb->get_type() === 'variation' ? -1 : 1);
+            });
+            foreach ($ids as $pid) {
+                $p = wc_get_product($pid);
+                if (!$p || !$p->delete(true)) {
+                    throw new RuntimeException('R8-C partial rollback; manual reconcile batch '.$id);
+                }
+            }
+            $journal['state'] = 'rolled_back';
+            $journal['deleted_count'] = count($ids);
+            update_option($batch_key, $journal, false);
+            echo 'R8_DEV_ROLLBACK_COMPLETE batch='.$id.' deleted='.count($ids).PHP_EOL;
+        }
+    }
+} finally {
+    if ($lock_acquired) { delete_option($lock_key); }
+}
