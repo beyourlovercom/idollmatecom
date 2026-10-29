@@ -345,7 +345,9 @@ try {
             }
         }
         $journal['state'] = 'applied';
-        update_option($batch_key, $journal, false);
+        if (!update_option($batch_key, $journal, false)) {
+            throw new RuntimeException('R8-C final journal commit failed; manual reconcile required');
+        }
         echo 'R8_DEV_APPLY_COMPLETE batch='.$id.' created='.$journal['created_count'].PHP_EOL;
     } else {
         if (!is_array($journal) || $journal['site'] !== 'https://dev.idollmate.com') {
