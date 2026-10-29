@@ -2,7 +2,7 @@
 /**
  * Plugin Name: iDollmate Home Layout
  * Description: An original, theme-neutral WooCommerce discovery homepage via [idollmate_home].
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * License: GPL-2.0-or-later
@@ -35,7 +35,7 @@ add_action(
 			'idollmate-home',
 			plugins_url( 'assets/home.css', __FILE__ ),
 			array(),
-			'0.1.0'
+			'0.2.0'
 		);
 	}
 );
@@ -82,6 +82,11 @@ function idm_render_home(): string {
 				<a class="idm-home__cta" href="<?php echo esc_url( $shop_link ); ?>">
 					<?php echo esc_html__( 'Explore the catalog', 'idollmate-home' ); ?>
 				</a>
+				<nav class="idm-home__quick-links" aria-label="<?php echo esc_attr__( 'Jump to store sections', 'idollmate-home' ); ?>">
+					<a href="#idm-home-categories"><?php echo esc_html__( 'Categories', 'idollmate-home' ); ?></a>
+					<a href="#idm-home-products"><?php echo esc_html__( 'Products', 'idollmate-home' ); ?></a>
+					<a href="#idm-home-guide"><?php echo esc_html__( 'How to choose', 'idollmate-home' ); ?></a>
+				</nav>
 			</div>
 			<div class="idm-home__hero-art" aria-hidden="true">
 				<span class="idm-home__art-circle idm-home__art-circle--one"></span>
@@ -110,7 +115,7 @@ function idm_render_home(): string {
 					<?php endforeach; ?>
 				</div>
 			<?php else : ?>
-				<div class="idm-home__empty"><?php echo esc_html__( 'Our categories are being organized. Explore the catalog for current listings.', 'idollmate-home' ); ?></div>
+				<div class="idm-home__empty"><?php echo esc_html__( 'Categories are being prepared. Start with our selection guide below.', 'idollmate-home' ); ?></div>
 			<?php endif; ?>
 		</section>
 		<section class="idm-home__section" aria-labelledby="idm-home-products">
@@ -124,6 +129,29 @@ function idm_render_home(): string {
 			<?php else : ?>
 				<div class="idm-home__empty"><?php echo esc_html__( 'Products will appear here once their specifications and imagery are verified.', 'idollmate-home' ); ?></div>
 			<?php endif; ?>
+		</section>
+		<section class="idm-home__guide" id="idm-home-guide" aria-labelledby="idm-home-guide-heading">
+			<div class="idm-home__section-head">
+				<h2 id="idm-home-guide-heading"><?php echo esc_html__( 'Choose with clarity', 'idollmate-home' ); ?></h2>
+				<p class="idm-home__guide-intro"><?php echo esc_html__( 'A simple path from browsing to configuration.', 'idollmate-home' ); ?></p>
+			</div>
+			<div class="idm-home__guide-grid">
+				<article class="idm-home__guide-card">
+					<span class="idm-home__guide-number" aria-hidden="true">01</span>
+					<h3><?php echo esc_html__( 'Compare materials', 'idollmate-home' ); ?></h3>
+					<p><?php echo esc_html__( 'Review each listed material, dimensions and specifications before selecting a model.', 'idollmate-home' ); ?></p>
+				</article>
+				<article class="idm-home__guide-card">
+					<span class="idm-home__guide-number" aria-hidden="true">02</span>
+					<h3><?php echo esc_html__( 'Configure options', 'idollmate-home' ); ?></h3>
+					<p><?php echo esc_html__( 'See available variations and optional upgrades with their individual prices.', 'idollmate-home' ); ?></p>
+				</article>
+				<article class="idm-home__guide-card">
+					<span class="idm-home__guide-number" aria-hidden="true">03</span>
+					<h3><?php echo esc_html__( 'Review your total', 'idollmate-home' ); ?></h3>
+					<p><?php echo esc_html__( 'Confirm selected upgrades, delivery details and the final order amount at checkout.', 'idollmate-home' ); ?></p>
+				</article>
+			</div>
 		</section>
 		<section class="idm-home__footnote" aria-label="<?php echo esc_attr__( 'Catalog information', 'idollmate-home' ); ?>">
 			<p><?php echo esc_html__( 'Browse verified product specifications before choosing your configuration.', 'idollmate-home' ); ?></p>
