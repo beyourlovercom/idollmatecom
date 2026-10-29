@@ -1,0 +1,30 @@
+name: R7 Catalog and Home Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'wordpress/plugins/idollmate-catalog/**'
+      - 'wordpress/plugins/idollmate-home/**'
+      - 'tests/idollmate_*_smoke.php'
+      - '.github/workflows/r7-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  r7-isolated-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP syntax
+        run: |
+          php -v
+          find wordpress/plugins/idollmate-catalog wordpress/plugins/idollmate-home -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l tests/idollmate_catalog_smoke.php
+          php -l tests/idollmate_home_smoke.php
+      - name: Isolated unit smoke tests
+        run: |
+          php tests/idollmate_catalog_smoke.php
+          php tests/idollmate_home_smoke.php
