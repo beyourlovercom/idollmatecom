@@ -43,6 +43,22 @@ $id = (string)$plan['plan_id'];
 if (!preg_match('/^[a-f0-9]{24}$/D', $id)) {
     throw new RuntimeException('R8-C invalid batch id');
 }
+$policy_file = __DIR__.'/r8_catalog_policy.json';
+if (!is_file($policy_file)
+    || !hash_equals((string)$plan['policy_sha256'], hash_file('sha256', $policy_file))) {
+    throw new RuntimeException('R8-C approved policy changed; new Preview required');
+}
+$calculated_id = substr(hash('sha256',
+    'r8-c-v1:'.$plan['source_sha256'].':'.$plan['snapshot_sha256'].':'.$plan['policy_sha256']),0,24);
+if (!hash_equals($id, $calculated_id)) {
+    throw new RuntimeException('R8-C plan checksum mismatch');
+}
+function idm_r8_canonical($value) {
+    if (!is_array($value)) { return $value; }
+    if (!array_is_list($value)) { ksort($value, SORT_STRING); }
+    foreach ($value as $key=>$element) { $value[$key] = idm_r8_canonical($element); }
+    return $value;
+}
 if (getenv('R8_OWNER_DEV_WRITE_PASS') !== 'R8-OWNER-PASS-'.$id) {
     throw new RuntimeException('R8-C independent Owner Dev write gate NOT granted');
 }
@@ -54,6 +70,11 @@ if (getenv('R8_CONFIRM_PHRASE') !== $required_phrase) {
 }
 if (!is_array($source_snapshot) || $source_snapshot['site'] !== 'https://dev.idollmate.com') {
     throw new RuntimeException('R8-C wrong snapshot');
+}
+$snapshot_canonical = wp_json_encode(idm_r8_canonical($source_snapshot),
+    JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+if (!hash_equals((string)$plan['snapshot_sha256'], hash('sha256', $snapshot_canonical))) {
+    throw new RuntimeException('R8-C snapshot digest mismatch');
 }
 /* The read-only snapshot emitter is a separately reviewed source file, staged
  * beside this script only after the new Dev write approval. */
