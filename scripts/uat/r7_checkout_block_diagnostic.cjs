@@ -75,6 +75,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await fill('shipping-postcode','90001');
     await fill('shipping-phone','2025550132');
     await sleep(1700);
+    // Woo Blocks asynchronously calculates shipping after address edits.
+    // Wait for the expected test-only total; never place an order on stale totals.
+    const pricingReady=await page.waitForFunction(
+      () => document.body.innerText.includes('$1,348.00'),
+      null,{timeout:16000}
+    ).then(()=>true).catch(()=>false);
+    console.log('R7_PRICING_READY',pricingReady);
     const terms=page.locator('.wp-block-woocommerce-checkout-terms-block input[type=checkbox], .wc-block-checkout__terms input[type=checkbox]');
     if (await terms.count() && !await terms.first().isChecked()) await terms.first().check();
     const state=()=>page.evaluate(()=>{
@@ -94,7 +101,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       }));
       const missing=[...document.querySelectorAll('input:required, select:required')]
         .filter(x=>!x.checkValidity()).map(x=>x.id||x.name).slice(0,15);
-      return {url:location.pathname,checkout,payment,boxes,missing,has_QA_gateway:document.body.innerText.includes('R7 TEST ONLY - DO NOT PAY'),
+      let cartTotals={},customer={};
+      try {
+        const c=data?.select('wc/store/cart');
+        cartTotals={raw:c?.getCartTotals?.(),shipping: c?.getShippingRates?.()?.map?.(r=>r.name||r.package_name).slice(0,3)};
+        const u=c?.getCartData?.();
+        customer={country:u?.shipping_address?.country,state:u?.shipping_address?.state};
+      } catch(e) { cartTotals={read_error:String(e).slice(0,110)}; }
+      const prices=(document.body.innerText.match(/\\$\\s*[\\d,.]+/g)||[]).slice(-14);
+      const overview=(document.querySelector('.wc-block-components-order-summary,.wc-block-components-totals-wrapper')?.innerText||'').slice(-600);
+      return {url:location.pathname,checkout,payment,boxes,missing,cartTotals,customer,prices,overview,has_QA_gateway:document.body.innerText.includes('R7 TEST ONLY - DO NOT PAY'),
         has_expected_total:document.body.innerText.includes('$1,348.00')};
     });
     const before=await state();
