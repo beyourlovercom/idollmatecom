@@ -184,6 +184,22 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       console.log('R7_BUTTON_FOCUS_RETRY',JSON.stringify(stability));
     }
     if(!stability.hasButton||stability.disabled||!stability.reactClick||!stability.focusIsButton)throw Error('Checkout Place Order button not ready for first click');
+    // The Woo checkout button and total transiently change during
+    // debounced customer/shipping updates. Only submit after they settle.
+    const isPayable=()=>page.evaluate(()=>{
+      const b=document.querySelector('.wc-block-components-checkout-place-order-button');
+      const c=window.wp?.data?.select('wc/store/cart')?.getCartTotals?.();
+      return !!b&&!b.disabled&&c?.total_price==='134800'&&
+        document.body.innerText.includes('$1,348.00');
+    });
+    await page.waitForFunction(()=>{
+      const b=document.querySelector('.wc-block-components-checkout-place-order-button');
+      const c=window.wp?.data?.select('wc/store/cart')?.getCartTotals?.();
+      return !!b&&!b.disabled&&c?.total_price==='134800'&&
+        document.body.innerText.includes('$1,348.00');
+    },null,{timeout:18000});
+    await sleep(900);
+    if(!(await isPayable())) throw Error('Checkout UI price or button became unstable; no submit');
     const before=await state();
     console.log('R7_CHECKOUT_BEFORE',JSON.stringify(before));
     await page.evaluate(()=>{
