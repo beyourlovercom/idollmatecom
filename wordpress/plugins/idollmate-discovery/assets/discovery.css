@@ -1,0 +1,25 @@
+/* R8-D original presentation. Public filter respects Woo native listing and theme.
+   Admin-only QA never exposes draft products on a public endpoint. */
+.idm-discovery{max-width:1260px;margin:16px auto 26px;padding:18px 20px;border:1px solid #eadde1;border-radius:14px;background:#faf6f7}
+.idm-discovery__categories{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.idm-discovery__categories a{padding:7px 12px;border:1px solid #e7dae0;border-radius:100px;color:#863d51;text-decoration:none;background:#fff}
+.idm-discovery__categories a:focus-visible,.idm-discovery__filter :focus-visible{outline:2px solid #a45269;outline-offset:3px}
+.idm-discovery__filter{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.idm-discovery__filter label{font-weight:650}
+.idm-discovery__filter select{min-width:170px;min-height:42px;border:1px solid #d6c8ce;border-radius:9px;padding:7px 12px;background:#fff}
+.idm-discovery__filter button{background:#873d52;color:#fff;border:0;border-radius:99px;padding:11px 18px;cursor:pointer}
+.idm-discovery__clear{color:#873d52}
+.idm-r8-qa__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:1150px;margin-top:22px}
+.idm-r8-qa__card{background:#fff;border:1px solid #e5dade;border-radius:16px;padding:22px;box-shadow:0 4px 14px rgb(0 0 0 / .04)}
+.idm-r8-qa__card h2{margin:15px 0 8px;font-size:1.35rem}
+.idm-r8-qa__card p{line-height:1.55}
+.idm-r8-qa__placeholder{height:168px;display:grid;place-items:center;border:1px dashed #d4bec6;border-radius:12px;background:linear-gradient(125deg,#faf4f6,#efe5ea);color:#724658;font-weight:700;letter-spacing:.08em}
+.idm-r8-qa form{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.idm-r8-qa form select{max-width:210px}
+.idm-specs{margin:20px 0;padding:18px 20px;border:1px solid #eadde1;border-radius:12px;background:#faf6f7}
+.idm-specs h3{margin:0 0 12px}
+.idm-specs dl{display:grid;grid-template-columns:auto 1fr;gap:9px 18px}
+.idm-specs dt{font-weight:700}
+.idm-specs p{font-size:.85rem;color:#6c6065}
+@media(max-width:720px){.idm-discovery{padding:14px;margin:12px}.idm-discovery__filter{align-items:stretch;flex-direction:column}.idm-discovery__filter>*{width:100%}.idm-r8-qa__grid{grid-template-columns:1fr}.idm-r8-qa form{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.idm-discovery *{scroll-behavior:auto}}

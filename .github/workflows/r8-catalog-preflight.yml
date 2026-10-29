@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/catalog/**'
       - 'tests/test_r8_catalog_*.py'
+      - 'wordpress/plugins/idollmate-discovery/**'
+      - 'tests/r8_discovery_smoke.php'
       - 'docs/architecture/R8_CATALOG_SCHEMA_V1.md'
       - '.github/workflows/r8-catalog-preflight.yml'
   workflow_dispatch:
@@ -30,7 +32,10 @@ jobs:
           php -l scripts/catalog/r8_woo_dev_guarded_apply.php
           php -l scripts/catalog/r8_woo_batch_guards.php
           php -l tests/r8_woo_batch_guards_test.php
+          php -l wordpress/plugins/idollmate-discovery/idollmate-discovery.php
+          php -l tests/r8_discovery_smoke.php
           php tests/r8_woo_batch_guards_test.php
+          php tests/r8_discovery_smoke.php
       - name: Isolated tests, including 2000-SKU and batch rollback
         run: |
           python -m unittest discover -s tests -p 'test_r8_catalog_*.py' -v
