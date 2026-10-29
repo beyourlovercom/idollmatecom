@@ -243,7 +243,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         type:el.getAttribute('type'),pointerEvents:getComputedStyle(el).pointerEvents
       }))));
     }
-    console.log('R7_CHECKOUT_ORDER_RECEIVED',/order-received|order-confirmation/.test(page.url()));
+    const orderReceived=/order-received|order-confirmation/.test(page.url());
+    const checkoutPosts=events.filter(e=>e.kind==='request'&&e.method==='POST'&&e.path==='/wp-json/wc/store/v1/checkout');
+    const checkout200=events.some(e=>e.kind==='response'&&e.path==='/wp-json/wc/store/v1/checkout'&&e.status===200);
+    console.log('R7_CHECKOUT_ORDER_RECEIVED',orderReceived);
+    console.log('R7_CHECKOUT_ACCEPTANCE',JSON.stringify({orderReceived,checkoutPosts:checkoutPosts.length,checkout200,pass:orderReceived&&checkoutPosts.length===1&&checkout200}));
+    if(!orderReceived||checkoutPosts.length!==1||!checkout200){
+      throw Error('First-click Woo Checkout acceptance NOT met; no automatic second click');
+    }
     await ctx.close();
   } finally {await browser.close();}
 })().catch(e=>{console.error('R7_DIAGNOSTIC_FAILED',String(e.stack||e).slice(0,750));process.exitCode=1;});
