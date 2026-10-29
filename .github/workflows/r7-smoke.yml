@@ -2,11 +2,6 @@ name: R7 Catalog and Home Smoke
 
 on:
   pull_request:
-    paths:
-      - 'wordpress/plugins/idollmate-catalog/**'
-      - 'wordpress/plugins/idollmate-home/**'
-      - 'tests/idollmate_*_smoke.php'
-      - '.github/workflows/r7-smoke.yml'
   workflow_dispatch:
 
 permissions:
