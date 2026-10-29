@@ -46,3 +46,57 @@ The 0.1.1 revision adds scoped query_loop_block_query_vars and render_block_wooc
 integration for the inherited main archive block; it does not affect custom collections or other pages.
 This is supported by the official WordPress Query Loop hook and WooCommerce Product Collection
 implementation. Test with authenticated Woo administrator render, never by publishing QA products.
+
+## Executed real Dev UAT evidence, 2026-10-29
+
+Real runtime: WordPress 7.1.4, WooCommerce 11.2.1, Hostinger AI block
+theme, Woo Product Collection archive, Active idollmate-discovery v0.1.1,
+native Extra Product Options, USD, blog_public=0, Coming Soon=yes.
+
+R8-D Dev functional UAT: PASS.
+- Existing /shop/, /product-category/mini-dolls/ and
+  /product-category/full-body-dolls/ return HTTP 200.
+- All three canonical routes correct; filtered canonical removes material.
+  Dev robots remain noindex, nofollow.
+- R8 discovery isolated 36/36 PASS, including malformed filter input and
+  nonarchive protection.
+- Real WordPress active block template introspected: inherited Woo Product
+  Collection block. Real runtime render_block() shop-context test:
+  R8_ACTUAL_WOO_BLOCK_RENDER_PASS, exactly one filter form,
+  both category links, zero Draft QA SKU leakage.
+- Real WP-context tests: tpe/silicone filters append to Woo query constraints,
+  unknown values fail closed; prior Woo visibility constraints preserved.
+- Anonymous HTTP renders Woo global Coming Soon, not live shop catalog;
+  this is EXPECTED and must not be disabled for UAT. Anonymous QA links
+  return 404 and admin QA route redirects to login.
+
+R8-E real QA data and admin render functional UAT: PASS.
+- In actual Woo admin-role context, restricted QA page has 7/7 expected
+  filter results: all=2, mini=1, full-body=1, tpe=2, silicone=1,
+  mini+silicone=0, invalid=0, all with matching SKU lists.
+- Valid native Woo draft product preview links for #32 and #33, and
+  administrator-only QA specifications in the single-product hook.
+- #32 simple Draft/Hidden USD599; #33 variable parent Draft/Hidden;
+  #34 TPE child USD999 and #35 Silicone child USD1099, both under #33.
+  Woo readback returned 2 available variations, no QA images/galleries.
+  Native Extra Product Options remains active and unchanged.
+- Fresh R8 protected Woo snapshot matches original 4 R7 product digests,
+  4 retained R8 QA IDs, unchanged taxonomy, Coming Soon and noindex.
+- R7 HTTP regression 9/9 PASS. R8 guard PHP 31/31 PASS;
+  R8 discovery PHP 36/36 PASS; R8 catalog Python 31/31 PASS.
+- No import, publishing, rollback, order, image or payment writes.
+
+Still outstanding and NOT falsely claimed complete:
+1. Authenticated actual browser screenshots + mobile/desktop visual signoff
+   for Woo Draft product detail, variations, admin QA cards and filter UI.
+   In-process Woo HTML rendering is a functional test, NOT equivalent to
+   browser UX screenshots.
+2. Multi-page public catalog pagination cannot be validated with only
+   four hidden Draft QA products; requires later lawful original products.
+3. R8-E does not authorize add-to-cart/payment, reference image ingestion
+   or public QA publication.
+4. PR #3 and #5 remain Draft/unmerged, R8 Issue #4 open, Production Shopify
+   and DNS unchanged.
+
+Current status: R8-D Dev functional UAT PASS; R8-E admin QA data/display
+functional UAT PASS; final browser visual and scale UAT remain OPEN.
