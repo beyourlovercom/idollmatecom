@@ -147,13 +147,28 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(800);
     const submitButton=page.locator('.wc-block-components-checkout-place-order-button');
     await submitButton.scrollIntoViewIfNeeded();
-    await submitButton.focus();
-    await sleep(450);
-    const stability=await page.evaluate(()=>{
+    const focusState=()=>page.evaluate(()=>{
       const button=document.querySelector('.wc-block-components-checkout-place-order-button');
-      return {hasButton:!!button,disabled:button?.disabled,reactClick:!!button&&Object.keys(button).some(k=>k.startsWith('__reactProps')&&typeof button[k]?.onClick==='function'),focusIsButton:document.activeElement===button};
+      const a=document.activeElement;
+      return {hasButton:!!button,disabled:button?.disabled,
+        reactClick:!!button&&Object.keys(button).some(k=>k.startsWith('__reactProps')&&typeof button[k]?.onClick==='function'),
+        focusIsButton:a===button,activeTag:a?.tagName||'',
+        activeId:a?.id||'',activeClass:typeof a?.className==='string'?a.className.slice(0,110):'',
+        buttonsOnPage:document.querySelectorAll('.wc-block-components-checkout-place-order-button').length};
     });
-    console.log('R7_BUTTON_STABILITY',JSON.stringify(stability));
+    await submitButton.focus();
+    const immediate=await focusState();
+    await sleep(600);
+    let stability=await focusState();
+    console.log('R7_BUTTON_FOCUS_TIMING',JSON.stringify({immediate,after600ms:stability}));
+    // Only retry focus when no checkout submission has occurred. The document
+    // remains on the same Checkout route and this does not click/order anything.
+    if (!stability.focusIsButton && stability.hasButton && !stability.disabled) {
+      await submitButton.focus();
+      await sleep(250);
+      stability=await focusState();
+      console.log('R7_BUTTON_FOCUS_RETRY',JSON.stringify(stability));
+    }
     if(!stability.hasButton||stability.disabled||!stability.reactClick||!stability.focusIsButton)throw Error('Checkout Place Order button not ready for first click');
     const before=await state();
     console.log('R7_CHECKOUT_BEFORE',JSON.stringify(before));
