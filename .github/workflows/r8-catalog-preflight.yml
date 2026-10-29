@@ -24,6 +24,10 @@ jobs:
       - name: Python syntax
         run: |
           python -m py_compile scripts/catalog/r8_catalog_preflight.py scripts/catalog/r8_catalog_batch.py tests/test_r8_catalog_preflight.py tests/test_r8_catalog_batch.py
-      - name: Isolated tests, including 2000-SKU scale
+      - name: Guarded Woo adapter PHP syntax only (never executes Dev writes)
+        run: |
+          php -l scripts/catalog/r8_woo_dev_snapshot.php
+          php -l scripts/catalog/r8_woo_dev_guarded_apply.php
+      - name: Isolated tests, including 2000-SKU and batch rollback
         run: |
           python -m unittest discover -s tests -p 'test_r8_catalog_*.py' -v
