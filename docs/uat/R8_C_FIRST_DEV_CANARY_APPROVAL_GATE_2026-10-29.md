@@ -45,3 +45,27 @@ Proposed only: `product_cat:mini-dolls`, `product_cat:full-body-dolls`, Woo glob
 9. No main merge, no Production Shopify changes, no DNS, no payment changes.
 
 **Current outcome:** R8-C source safety enhanced; real Dev Canary, actual Woo CRUD, interrupted-run recovery, and admin-browser Preview/Confirm UAT remain NOT PASS.
+
+## Continued source-only acceptance — no Gate T/C permissions implied
+
+### New runtime-relevant source protections
+- Repeated `apply` on a verified **applied** batch now takes a read-only already-completed path after checking exact journal ID ownership, current live additions, no R7 baseline drift, unchanged imported fingerprints, Draft parent status and no order references. Pending/in-progress/corrupt batches are never silently retried.
+- Guarded WP-CLI takes a per-batch lock **before** refreshing the live snapshot. Its error/kill handling still requires manual inspection when a lock or pending journal remains.
+- Durable `pending_sku` marker is written and read back before each Woo product `save()`, followed by the saved product ID and marker clearance. A crash in the save/journal interval remains fail-closed for manual reconciliation; no automatic deletion of unjournaled rows.
+- Variable-parent fingerprints are refreshed **after** creating child variations, because Woo may synchronize parent state as children save.
+- Both Python planner and PHP guarded adapter reject old six-field snapshots without a protected-field digest before any real import.
+- Isolated test suite: Python **31/31 PASS**, PHP pure guards **25/25 PASS**. No true Woo CRUD / rollback transaction has been exercised.
+
+### Real Dev read-only protected snapshot and Preview (2026-10-29)
+- Strengthened snapshot loaded by read-only WP-CLI evaluation from China Mac (no file deployed on Hostinger): **4** unchanged R7 Woo records, `uncategorized` only, no installed R8 global attributes, protected Coming Soon/noindex remain on.
+- Protected snapshot persisted privately on China Mac at `~/AI/idollmate/r8-private/dev_snapshot_integrity_20261029.json`, never committed to public source.
+- Python/PHP canonical snapshot SHA-256 parity: `0985949158ac561a212fe61ecfba6ad4bd6a120ed84c754832887c5972176be7`.
+- QA CSV SHA-256: `e03ee78f41976d8c68692536bf0e3e13f1b7b70cdaccd0ee6840da3155bd85e2`. Four rows, **0** SKU collisions and CSV errors, **5** missing taxonomy/attribute blockers.
+- Diagnostic blocked plan `6b729c6a8e2e47c1def8a140` has `ready_for_owner_review=false` and **must NEVER be approved or executed**. Gate T term creation will change the snapshot and force a fresh new plan ID.
+
+### Exact next Owner approval boundary
+- **Gate T only, not currently authorized:** `pass R8-C Gate T: Dev taxonomy mini-dolls full-body-dolls pa_material=tpe,silicone only`.
+- **Gate C (different future approval):** after Gate T has succeeded, zero-blocker fresh Preview, no media, original QA fixture rights review, and exact batch plan+SHA: `pass R8-C Dev Canary <NEW_PLAN_ID> 4`.
+- A second exact Rollback command and its independent Owner approval are required before any real deletion. Live PHP 137/503 interruption recovery is **NOT YET PASS** and must be contained/observed at Canary.
+
+No Dev product, taxonomy, attribute, image, order, payment, DNS or Production changes were performed in this source-only continuation.

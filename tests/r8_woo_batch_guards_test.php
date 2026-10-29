@@ -113,4 +113,25 @@ blocked(function() {
 blocked(function() {
     idm_r8_assert_batch_journal_ids(array(),array('state'=>'applied','ids'=>array()));
 },'EMPTY_JOURNAL_REJECTS_DELETE');
+$completed = array('state'=>'applied', 'ids'=>array(201,202), 'created_count'=>2);
+check(idm_r8_assert_applied_batch_replay($completed,array(202,201),array(201,202)),
+      'REPEATED_APPLY_MATCHED_IS_READ_ONLY');
+blocked(function() use($completed) {
+    $pending=$completed; $pending['pending_sku']='IDM-R8-EXAMPLE-TPE';
+    idm_r8_assert_applied_batch_replay($pending,array(201,202),array(201,202));
+}, 'PENDING_SKU_REPLAY_DENIED');
+blocked(function() use($completed) {
+    $in_progress=$completed; $in_progress['state']='in_progress';
+    idm_r8_assert_applied_batch_replay($in_progress,array(201,202),array(201,202));
+}, 'IN_PROGRESS_REPLAY_DENIED');
+blocked(function() use($completed) {
+    idm_r8_assert_applied_batch_replay($completed,array(201,202),array(201,202,203));
+}, 'FOREIGN_LIVE_ADDITION_REPLAY_DENIED');
+blocked(function() use($completed) {
+    $incomplete=$completed; $incomplete['created_count']=1;
+    idm_r8_assert_applied_batch_replay($incomplete,array(201,202),array(201,202));
+}, 'COUNT_DRIFT_REPLAY_DENIED');
+blocked(function() use($completed) {
+    idm_r8_assert_applied_batch_replay($completed,array(201),array(201,202));
+}, 'MISSING_TAGGED_REPLAY_DENIED');
 echo 'R8_PHP_GUARD_TESTS='.$pass.' PASS'.PHP_EOL;

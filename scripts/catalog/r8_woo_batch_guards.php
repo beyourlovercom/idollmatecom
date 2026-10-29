@@ -66,3 +66,23 @@ function idm_r8_assert_batch_journal_ids($actual_ids, $journal) {
     }
     return true;
 }
+
+
+/** Exact, read-only replay acceptance: a completed batch, no pending SKU,
+ * and the journal, DB-tagged IDs and live additions must all match. */
+function idm_r8_assert_applied_batch_replay($journal, $tagged_ids, $live_added_ids) {
+    if (!is_array($journal) || ($journal['state'] ?? null) !== 'applied'
+        || !empty($journal['pending_sku'])
+        || ($journal['created_count'] ?? null) !== count($tagged_ids)) {
+        throw new RuntimeException('R8-C incomplete/unknown batch; replay blocked');
+    }
+    idm_r8_assert_batch_journal_ids($tagged_ids, $journal);
+    $actual = array_map('intval', $tagged_ids);
+    $added = array_map('intval', $live_added_ids);
+    sort($actual, SORT_NUMERIC);
+    sort($added, SORT_NUMERIC);
+    if ($actual !== $added) {
+        throw new RuntimeException('R8-C replay live additions differ from tagged journal IDs');
+    }
+    return true;
+}

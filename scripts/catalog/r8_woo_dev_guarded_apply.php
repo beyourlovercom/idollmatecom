@@ -86,41 +86,6 @@ $snapshot_canonical = wp_json_encode(idm_r8_canonical($snapshot_object),
 if (!hash_equals((string)$plan['snapshot_sha256'], hash('sha256', $snapshot_canonical))) {
     throw new RuntimeException('R8-C snapshot digest mismatch');
 }
-/* The read-only snapshot emitter is a separately reviewed source file, staged
- * beside this script only after the new Dev write approval. */
-$snapshot_script = $script_dir.'/r8_woo_dev_snapshot.php';
-if (!is_file($snapshot_script)) {
-    throw new RuntimeException('R8-C snapshot implementation missing');
-}
-ob_start();
-try {
-    require $snapshot_script;
-    $live_json = ob_get_clean();
-} catch (Throwable $e) {
-    ob_end_clean();
-    throw $e;
-}
-$live_snapshot = json_decode($live_json, true);
-if (!is_array($live_snapshot)) {
-    throw new RuntimeException('R8-C live Woo snapshot unreadable');
-}
-require_once __DIR__.'/r8_woo_batch_guards.php';
-if ($action === 'apply') {
-    if ($live_snapshot !== $source_snapshot) {
-        throw new RuntimeException('R8-C LIVE SNAPSHOT CHANGED; obtain new Preview');
-    }
-} else {
-    /* A successful apply changes inventory by adding this batch only. The
-     * pure guard verifies all original products, categories, brands and terms
-     * remain IDENTICAL and all new IDs belong to this exact batch. */
-    idm_r8_assert_live_baseline(
-        $source_snapshot, $live_snapshot, $id,
-        static function($live_id) {
-            $p = wc_get_product($live_id);
-            return $p ? (string)$p->get_meta('_idm_r8_batch_id', true) : '';
-        }
-    );
-}
 if ($action === 'apply') {
     if (!is_string($csv_path) || !is_file($csv_path) || is_link($csv_path)
         || filesize($csv_path) > 20000000
@@ -219,11 +184,97 @@ function idm_r8_batch_ids($batch) {
         '_idm_r8_batch_id', $batch
     )));
 }
+function idm_r8_assert_owned_products_unchanged($ids, $batch_id) {
+    global $wpdb;
+    foreach ($ids as $pid) {
+        $p = wc_get_product($pid);
+        $parent = $p && $p->get_type() === 'variation'
+            ? wc_get_product($p->get_parent_id()) : null;
+        if (!$p || (string)$p->get_meta('_idm_r8_batch_id', true) !== $batch_id
+            || ($p->get_type() !== 'variation' && $p->get_status() !== 'draft')
+            || ($p->get_type() === 'variation'
+                && (!$parent || $parent->get_status() !== 'draft'))
+            || get_post_meta($pid, '_idm_r8_import_fingerprint', true)
+                !== idm_r8_fingerprint($p)) {
+            throw new RuntimeException('R8-C owned product changed; action blocked');
+        }
+        $references = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}woocommerce_order_itemmeta
+                WHERE meta_key IN ('_product_id','_variation_id') AND meta_value=%s",
+            (string)$pid
+        ));
+        if ((int)$references > 0) {
+            throw new RuntimeException('R8-C owned product referenced in order; action blocked');
+        }
+    }
+}
+/* Durable in-progress marker: if PHP dies between save() and journal append,
+ * preserve which SKU was being created, never blindly retry/delete it. */
+function idm_r8_journal_pending($key, &$journal, $sku) {
+    $journal['pending_sku'] = $sku;
+    if (!update_option($key, $journal, false)
+        || get_option($key) !== $journal) {
+        throw new RuntimeException('R8-C pending SKU journal write not durable');
+    }
+}
+function idm_r8_journal_record($key, &$journal, $created_id) {
+    $journal['ids'][] = $created_id;
+    $journal['created_count']++;
+    unset($journal['pending_sku']);
+    if (!update_option($key, $journal, false)
+        || get_option($key) !== $journal) {
+        throw new RuntimeException('R8-C created ID journal write not durable');
+    }
+}
 try {
+    /* Acquire lock BEFORE live snapshot to prevent a same-batch race.
+     * Snapshot never creates product/taxonomy/attribute records. */
+    /* The read-only snapshot emitter is a separately reviewed source file, staged
+     * beside this script only after the new Dev write approval. */
+$snapshot_script = $script_dir.'/r8_woo_dev_snapshot.php';
+if (!is_file($snapshot_script)) {
+    throw new RuntimeException('R8-C snapshot implementation missing');
+}
+ob_start();
+try {
+    require $snapshot_script;
+    $live_json = ob_get_clean();
+} catch (Throwable $e) {
+    ob_end_clean();
+    throw $e;
+}
+$live_snapshot = json_decode($live_json, true);
+if (!is_array($live_snapshot)) {
+    throw new RuntimeException('R8-C live Woo snapshot unreadable');
+}
+    require_once __DIR__.'/r8_woo_batch_guards.php';
+    /* Reject a weak legacy Preview before any possible import write. */
+    idm_r8_assert_live_baseline(
+        $source_snapshot, $source_snapshot, $id,
+        static function($live_id) { return ''; }
+    );
     $journal = get_option($batch_key);
+    $tagged_ids = idm_r8_batch_ids($id);
     if ($action === 'apply') {
-        if ($journal !== false || idm_r8_batch_ids($id)) {
-            throw new RuntimeException('R8-C batch already exists; no automatic retry/overwrite');
+        if ($journal !== false || $tagged_ids) {
+            if (!is_array($journal) || ($journal['site'] ?? null) !== 'https://dev.idollmate.com'
+                || ($journal['csv_sha256'] ?? null) !== $plan['source_sha256']) {
+                throw new RuntimeException('R8-C batch replay provenance mismatch');
+            }
+            $added = idm_r8_assert_live_baseline(
+                $source_snapshot, $live_snapshot, $id,
+                static function($live_id) {
+                    $p = wc_get_product($live_id);
+                    return $p ? (string)$p->get_meta('_idm_r8_batch_id', true) : '';
+                }
+            );
+            idm_r8_assert_applied_batch_replay($journal, $tagged_ids, $added);
+            idm_r8_assert_owned_products_unchanged($tagged_ids, $id);
+            echo 'R8_DEV_APPLY_ALREADY_COMPLETE batch='.$id.' created=0'.PHP_EOL;
+            return;
+        }
+        if ($live_snapshot !== $source_snapshot) {
+            throw new RuntimeException('R8-C LIVE SNAPSHOT CHANGED; obtain new Preview');
         }
         $rows = idm_r8_rows($csv_path);
         if (count($rows) !== (int)$plan['total_rows']) {
@@ -322,6 +373,7 @@ try {
                 }
             }
             if ($attrs) { $p->set_attributes($attrs); }
+            idm_r8_journal_pending($batch_key, $journal, $row['sku']);
             $new_id = idm_r8_mark_and_save($p, $row, $id);
             if ($row['brand_slug']) {
                 $brand_id = idm_r8_term('product_brand', $row['brand_slug']);
@@ -335,11 +387,7 @@ try {
                     throw new RuntimeException('R8-C final brand fingerprint persistence failed');
                 }
             }
-            $journal['ids'][] = $new_id;
-            $journal['created_count']++;
-            if (!update_option($batch_key, $journal, false)) {
-                throw new RuntimeException('R8-C journal persistence failed; manual reconcile required');
-            }
+            idm_r8_journal_record($batch_key, $journal, $new_id);
             $parent_created[$row['sku']] = $new_id;
         }
         foreach ($children as $row) {
@@ -357,11 +405,22 @@ try {
                 $p->set_manage_stock(true);
                 $p->set_stock_quantity((int)$row['stock_quantity']);
             }
+            idm_r8_journal_pending($batch_key, $journal, $row['sku']);
             $new_id = idm_r8_mark_and_save($p, $row, $id);
-            $journal['ids'][] = $new_id;
-            $journal['created_count']++;
-            if (!update_option($batch_key, $journal, false)) {
-                throw new RuntimeException('R8-C journal persistence failed; manual reconcile required');
+            idm_r8_journal_record($batch_key, $journal, $new_id);
+        }
+        /* Woo may sync/modify the variable parent when the child variations
+         * are saved. Capture the *final* product state, not its earlier parent
+         * state, or a valid rollback could incorrectly fail on its own writes. */
+        foreach ($journal['ids'] as $pid) {
+            $final = wc_get_product($pid);
+            if (!$final || (string)$final->get_meta('_idm_r8_batch_id', true) !== $id) {
+                throw new RuntimeException('R8-C final product readback/tag mismatch');
+            }
+            $final_fingerprint = idm_r8_fingerprint($final);
+            update_post_meta($pid, '_idm_r8_import_fingerprint', $final_fingerprint);
+            if (get_post_meta($pid, '_idm_r8_import_fingerprint', true) !== $final_fingerprint) {
+                throw new RuntimeException('R8-C final product fingerprint not persisted');
             }
         }
         $journal['state'] = 'applied';
@@ -370,6 +429,15 @@ try {
         }
         echo 'R8_DEV_APPLY_COMPLETE batch='.$id.' created='.$journal['created_count'].PHP_EOL;
     } else {
+        /* Allow exactly the current batch's additions while preserving the
+         * original product/term integrity snapshot. */
+        idm_r8_assert_live_baseline(
+            $source_snapshot, $live_snapshot, $id,
+            static function($live_id) {
+                $p = wc_get_product($live_id);
+                return $p ? (string)$p->get_meta('_idm_r8_batch_id', true) : '';
+            }
+        );
         if (!is_array($journal) || $journal['site'] !== 'https://dev.idollmate.com') {
             throw new RuntimeException('R8-C unknown/unowned rollback batch');
         }
@@ -381,27 +449,8 @@ try {
             /* Compare exact DB-tagged set with immutable per-batch journal.
              * Missing or foreign items block ALL deletions. */
             idm_r8_assert_batch_journal_ids($ids, $journal);
-            /* Preflight ALL surviving products BEFORE deleting ANY. */
-            global $wpdb;
-            foreach ($ids as $pid) {
-                $p = wc_get_product($pid);
-                if (!$p || (string)$p->get_meta('_idm_r8_batch_id', true) !== $id
-                    || ($p->get_type() !== 'variation' && $p->get_status() !== 'draft')
-                    || ($p->get_type() === 'variation'
-                        && wc_get_product($p->get_parent_id())->get_status() !== 'draft')
-                    || get_post_meta($pid, '_idm_r8_import_fingerprint', true)
-                        !== idm_r8_fingerprint($p)) {
-                    throw new RuntimeException('R8-C product changed; rollback aborted before deletion');
-                }
-                $references = $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$wpdb->prefix}woocommerce_order_itemmeta
-                       WHERE meta_key IN ('_product_id','_variation_id') AND meta_value=%s",
-                    (string)$pid
-                ));
-                if ((int)$references > 0) {
-                    throw new RuntimeException('R8-C product referenced in an order; rollback forbidden');
-                }
-            }
+            /* Preflight ALL surviving products before deleting ANY. */
+            idm_r8_assert_owned_products_unchanged($ids, $id);
             usort($ids, static function($a, $b) {
                 $aa = wc_get_product($a); $bb = wc_get_product($b);
                 return ($aa->get_type() === 'variation' ? -1 : 1)

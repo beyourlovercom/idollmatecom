@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """R8-C: isolated Python-only Preview/Confirm/Rollback contract tests."""
 import csv
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -33,7 +34,8 @@ def state():
     return {"site": "https://dev.idollmate.com", "blog_public": "0",
             "coming_soon": "yes",
             "products": [{"id": 13, "sku": "IDM-R7-QA-20261028",
-                          "slug": "r7-qa-only", "type": "simple", "status": "draft"}],
+                          "slug": "r7-qa-only", "type": "simple", "status": "draft",
+                          "integrity_sha256": hashlib.sha256(b"frozen-r7-original").hexdigest()}],
             "categories": ["uncategorized", "full-body-dolls", "mini-dolls"],
             "brands": [], "attributes": {"pa_material": ["tpe", "silicone", "hybrid"],
                                          "pa_size_code": []}}
@@ -107,7 +109,8 @@ class R8BatchTests(unittest.TestCase):
     def test_confirmation_rejects_changed_snapshot(self):
         p = self.preview()
         self.state["products"].append({"id": 20, "sku": "NEW-IDM",
-                                       "slug": "new", "type": "simple", "status": "draft"})
+                                       "slug": "new", "type": "simple", "status": "draft",
+                                       "integrity_sha256": hashlib.sha256(b"unrelated-added").hexdigest()})
         with self.assertRaisesRegex(ValueError, "STALE_PLAN"):
             batch.confirm(self.csv, self.state, p, p["approval_phrase"], self.ledger)
 
@@ -155,6 +158,14 @@ class R8BatchTests(unittest.TestCase):
         self._snapshot()
         with self.assertRaisesRegex(ValueError, "protected"):
             batch.snapshot(self.snapshotfile)
+
+    def test_legacy_weak_snapshot_denied_before_approval(self):
+        del self.state["products"][0]["integrity_sha256"]
+        self._snapshot()
+        with self.assertRaisesRegex(ValueError, "weak snapshot"):
+            batch.snapshot(self.snapshotfile)
+        with self.assertRaisesRegex(ValueError, "weak snapshot"):
+            self.preview()
 
     def test_preview_cli_writes_local_only(self):
         self.assertEqual(0, batch.main(["preview", "--csv", str(self.csv),

@@ -7,6 +7,7 @@ import csv
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import sys
 
@@ -35,6 +36,9 @@ def snapshot(path):
     for item in s["products"]:
         if not isinstance(item.get("id"), int) or not isinstance(item.get("sku"), str):
             raise ValueError("Malformed snapshot product")
+        if not isinstance(item.get("integrity_sha256"), str) or not re.fullmatch(
+                r"[a-f0-9]{64}", item["integrity_sha256"]):
+            raise ValueError("Legacy weak snapshot: protected product integrity digest required")
         if item.get("type") not in ("simple", "variable", "variation"):
             raise ValueError("Unsupported snapshot product type")
     skus = [x["sku"].casefold() for x in s["products"] if x["sku"]]
@@ -55,6 +59,10 @@ def rows(path):
 
 
 def preview(path, state):
+    if any(not isinstance(item.get("integrity_sha256"), str) or
+           not re.fullmatch(r"[a-f0-9]{64}", item["integrity_sha256"])
+           for item in state.get("products", [])):
+        raise ValueError("Legacy weak snapshot: protected product integrity digest required")
     sku_set = {x["sku"] for x in state["products"] if x["sku"]}
     check = preflight(path, existing_skus=sku_set, max_rows=MAX_ROWS)
     blockers = []
