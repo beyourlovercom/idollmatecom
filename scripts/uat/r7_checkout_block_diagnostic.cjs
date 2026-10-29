@@ -200,45 +200,40 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(800);
     const submitButton=page.locator('.wc-block-components-checkout-place-order-button');
     await submitButton.scrollIntoViewIfNeeded();
-    const focusState=()=>page.evaluate(()=>{
-      const button=document.querySelector('.wc-block-components-checkout-place-order-button');
-      const a=document.activeElement;
-      return {hasButton:!!button,disabled:button?.disabled,
-        reactClick:!!button&&Object.keys(button).some(k=>k.startsWith('__reactProps')&&typeof button[k]?.onClick==='function'),
-        focusIsButton:a===button,activeTag:a?.tagName||'',
-        activeId:a?.id||'',activeClass:typeof a?.className==='string'?a.className.slice(0,110):'',
-        buttonsOnPage:document.querySelectorAll('.wc-block-components-checkout-place-order-button').length};
-    });
-    await submitButton.focus();
-    const immediate=await focusState();
-    await sleep(600);
-    let stability=await focusState();
-    console.log('R7_BUTTON_FOCUS_TIMING',JSON.stringify({immediate,after600ms:stability}));
-    // Only retry focus when no checkout submission has occurred. The document
-    // remains on the same Checkout route and this does not click/order anything.
-    if (!stability.focusIsButton && stability.hasButton && !stability.disabled) {
-      await submitButton.focus();
-      await sleep(250);
-      stability=await focusState();
-      console.log('R7_BUTTON_FOCUS_RETRY',JSON.stringify(stability));
-    }
-    if(!stability.hasButton||stability.disabled||!stability.reactClick||!stability.focusIsButton)throw Error('Checkout Place Order button not ready for first click');
-    // The Woo checkout button and total transiently change during
-    // debounced customer/shipping updates. Only submit after they settle.
-    const isPayable=()=>page.evaluate(()=>{
-      const b=document.querySelector('.wc-block-components-checkout-place-order-button');
-      const c=window.wp?.data?.select('wc/store/cart')?.getCartTotals?.();
-      return !!b&&!b.disabled&&c?.total_price==='134800'&&
-        document.body.innerText.includes('$1,348.00');
-    });
+    // A native Woo Checkout Block button is briefly disabled while address
+    // changes flush. Wait for real Woo readiness BEFORE first click/focus.
     await page.waitForFunction(()=>{
       const b=document.querySelector('.wc-block-components-checkout-place-order-button');
       const c=window.wp?.data?.select('wc/store/cart')?.getCartTotals?.();
-      return !!b&&!b.disabled&&c?.total_price==='134800'&&
+      return !!b && !b.disabled && c?.total_price==='134800' &&
         document.body.innerText.includes('$1,348.00');
-    },null,{timeout:18000});
+    },null,{timeout:25000});
     await sleep(900);
-    if(!(await isPayable())) throw Error('Checkout UI price or button became unstable; no submit');
+    const focusState=()=>page.evaluate(()=>{
+      const b=document.querySelector('.wc-block-components-checkout-place-order-button');
+      const a=document.activeElement;
+      return {hasButton:!!b,disabled:b?.disabled,focusIsButton:a===b,
+        reactClick:!!b&&Object.keys(b).some(k=>k.startsWith('__reactProps')&&typeof b[k]?.onClick==='function'),
+        activeTag:a?.tagName||''};
+    });
+    let stability=await focusState();
+    console.log('R7_BUTTON_READY_AFTER_WAIT',JSON.stringify(stability));
+    if(!stability.hasButton||stability.disabled||!stability.reactClick)
+      throw Error('Checkout Place Order not enabled after customer data settled');
+    await submitButton.focus();
+    await sleep(200);
+    stability=await focusState();
+    console.log('R7_BUTTON_FOCUS_AFTER_READY',JSON.stringify(stability));
+    if(!stability.hasButton||stability.disabled||!stability.reactClick)
+      throw Error('Checkout button became disabled again before first click');
+    // Playwright's real .click() will focus the button; focus alone is
+    // diagnostic, never a reason to issue extra clicks.
+    const isPayable=()=>page.evaluate(()=>{
+      const b=document.querySelector('.wc-block-components-checkout-place-order-button');
+      const c=window.wp?.data?.select('wc/store/cart')?.getCartTotals?.();
+      return !!b&&!b.disabled&&c?.total_price==='134800'&&document.body.innerText.includes('$1,348.00');
+    });
+    if(!(await isPayable()))throw Error('Checkout UI changed again before first click');
     const before=await state();
     console.log('R7_CHECKOUT_BEFORE',JSON.stringify(before));
     await page.evaluate(()=>{
