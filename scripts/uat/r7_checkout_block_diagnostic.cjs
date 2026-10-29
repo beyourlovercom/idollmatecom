@@ -64,7 +64,21 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       null,{timeout:18000});
     await page.locator('input[name=tmcp_checkbox_0_0]').check({force:true});
     await page.locator('button.single_add_to_cart_button').click();
-    await sleep(1500);
+    await sleep(1900);
+    // Session gate: native Woo cart must persist real variation + add-on
+    // BEFORE testing checkout; an empty cart redirects Checkout to /cart/.
+    const cartResp=await page.goto(origin+'/cart/?r7qa=20261029f1',{waitUntil:'domcontentloaded',timeout:35000});
+    await page.waitForFunction(()=>document.body.innerText.includes('iDollmate R7 Variable QA') &&
+      document.body.innerText.includes('$1,148.00'),null,{timeout:15000}).catch(()=>null);
+    const cartGate=await page.evaluate(()=>({
+      path:location.pathname,empty:/your cart is currently empty/i.test(document.body.innerText),
+      item:document.body.innerText.includes('iDollmate R7 Variable QA'),
+      addOn:document.body.innerText.includes('Premium head'),
+      amount:document.body.innerText.includes('$1,148.00')
+    }));
+    console.log('R7_CART_SESSION_GATE',JSON.stringify({http:cartResp.status(),...cartGate}));
+    if(cartResp.status()!==200||cartGate.empty||!cartGate.item||!cartGate.addOn||!cartGate.amount)
+      throw Error('QA cart session not persisted; checkout must not be submitted');
     const ch=await page.goto(origin+'/checkout/?r7qa=20261029f1',{waitUntil:'domcontentloaded',timeout:35000});
     if (ch.status()!==200) throw Error('Checkout HTTP '+ch.status());
     const gatewayReady=await page.getByText('R7 TEST ONLY - DO NOT PAY').waitFor({timeout:20000}).then(()=>true).catch(()=>false);
