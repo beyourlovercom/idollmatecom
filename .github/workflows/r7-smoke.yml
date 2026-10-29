@@ -25,3 +25,6 @@ jobs:
           php tests/idollmate_catalog_smoke.php
           php tests/idollmate_home_smoke.php
           php tests/idollmate_storefront_smoke.php
+
+      - name: Checkout Block browser diagnostic syntax (does not run browser or submit orders)
+        run: node --check scripts/uat/r7_checkout_block_diagnostic.cjs
