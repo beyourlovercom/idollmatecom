@@ -41,10 +41,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const path=safePath(resp.url());
       if (!path.includes('/wc/store/') && !resp.url().includes('rest_route=')) return;
       const item={kind:'response',path,status:resp.status()};
-      if (resp.status()>=400) {
+      if (resp.status()>=400 || path.endsWith('/batch')) {
         const d=await resp.json().catch(()=>({}));
         item.error_code=String(d.code||'').slice(0,90);
         item.error_message=String(d.message||'').slice(0,120);
+        if (Array.isArray(d.responses)) {
+          item.batch=d.responses.slice(0,12).map(x=>({
+            status:x.status,
+            code:String(x.body?.code||'').slice(0,80),
+            error:String(x.body?.message||'').slice(0,130)
+          }));
+        }
       }
       events.push(item);
     });
@@ -89,7 +96,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       let checkout={},payment={};
       try{
         const c=data?.select('wc/store/checkout');
-        checkout={status:c?.getCheckoutStatus?.(), errors: c?.getCheckoutError?.()?.message||null};
+        checkout={status:c?.getCheckoutStatus?.(), errors:c?.getCheckoutError?.()?.message||null, hasError:c?.hasError?.()};
       }catch(e){checkout={read_error:String(e).slice(0,100)};}
       try{
         const p=data?.select('wc/store/payment');
@@ -97,6 +104,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       }catch(e){payment={read_error:String(e).slice(0,100)};}
       const val=data?.select('wc/store/validation');
       const valErrors=val?.getValidationErrors?.()||{};
+      const hasValidationErrors=val?.hasValidationErrors?.();
       const btn=document.querySelector('.wc-block-components-checkout-place-order-button');
       const button={disabled:btn?.disabled,ariaDisabled:btn?.getAttribute('aria-disabled'),text:btn?.textContent?.trim()};
       const boxes=[...document.querySelectorAll('input[type=checkbox]')].map(el=>({
@@ -112,9 +120,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         const u=c?.getCartData?.();
         customer={country:u?.shipping_address?.country,state:u?.shipping_address?.state};
       } catch(e) { cartTotals={read_error:String(e).slice(0,110)}; }
-      const prices=(document.body.innerText.match(/\\$\\s*[\\d,.]+/g)||[]).slice(-14);
+      const prices=(document.body.innerText.match(/\$\s*[\d,.]+/g)||[]).slice(-14);
       const overview=(document.querySelector('.wc-block-components-order-summary,.wc-block-components-totals-wrapper')?.innerText||'').slice(-600);
-      return {url:location.pathname,checkout,payment,validationErrors:valErrors,button,boxes,missing,cartTotals,customer,prices,overview,has_QA_gateway:document.body.innerText.includes('R7 TEST ONLY - DO NOT PAY'),
+      return {url:location.pathname,checkout,payment,validationErrors:valErrors,hasValidationErrors,button,boxes,missing,cartTotals,customer,prices,overview,has_QA_gateway:document.body.innerText.includes('R7 TEST ONLY - DO NOT PAY'),
         has_expected_total:document.body.innerText.includes('$1,348.00')};
     });
     const before=await state();
