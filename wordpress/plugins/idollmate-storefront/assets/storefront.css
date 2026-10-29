@@ -1,0 +1,178 @@
+/* iDollmate R7-F: no images, font downloads, business rules or checkout JS.
+   Scoped to WooCommerce storefront views by body.idm-storefront-ui. */
+body.idm-storefront-ui {
+  --idm-ui-ink: #24232a;
+  --idm-ui-muted: #645e66;
+  --idm-ui-line: #e7dde1;
+  --idm-ui-soft: #faf5f6;
+  --idm-ui-rose: #a45269;
+  --idm-ui-rose-dark: #863d51;
+}
+body.idm-storefront-ui :is(.woocommerce, .wc-block-cart, .wc-block-checkout) {
+  color: var(--idm-ui-ink);
+}
+body.idm-storefront-ui :is(.woocommerce, .wc-block-cart, .wc-block-checkout) :is(input, select, textarea) {
+  accent-color: var(--idm-ui-rose);
+}
+body.idm-storefront-ui :is(.woocommerce, .wc-block-cart, .wc-block-checkout) :is(input,select,textarea,button,a):focus-visible {
+  outline: 2px solid var(--idm-ui-rose);
+  outline-offset: 3px;
+}
+/* Accessible WooCommerce native product detail, without replacing forms. */
+body.idm-storefront-ui.single-product .woocommerce div.product {
+  display: flow-root;
+  max-width: 1280px;
+  margin: clamp(22px,3.5vw,55px) auto;
+  padding: 0 clamp(16px,3vw,48px);
+}
+body.idm-storefront-ui.single-product .woocommerce div.product .product_title {
+  font-size: clamp(1.75rem,2.65vw,2.65rem);
+  line-height: 1.18;
+  letter-spacing: -.035em;
+  font-weight: 675;
+  color: var(--idm-ui-ink);
+  margin-bottom: 20px;
+}
+body.idm-storefront-ui.single-product .woocommerce div.product .summary .price {
+  color: var(--idm-ui-rose-dark);
+  font-size: clamp(1.35rem,2vw,1.65rem);
+  font-weight: 700;
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.cart {
+  display: block;
+  margin-top: 24px;
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.variations_form table.variations {
+  border: 0;
+  width: 100%;
+  margin: 8px 0 20px;
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.variations_form table.variations th,
+body.idm-storefront-ui.single-product .woocommerce div.product form.variations_form table.variations td {
+  padding: 8px 0;
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.variations_form table.variations label {
+  color: var(--idm-ui-ink);
+  font-size: .91rem;
+  font-weight: 700;
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.variations_form select {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid var(--idm-ui-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--idm-ui-ink);
+}
+body.idm-storefront-ui.single-product .tm-extra-product-options,
+body.idm-storefront-ui.single-product .tc-extra-product-options {
+  padding: clamp(17px,2.4vw,26px);
+  margin: 15px 0 22px;
+  border: 1px solid var(--idm-ui-line);
+  border-radius: 15px;
+  background: var(--idm-ui-soft);
+}
+body.idm-storefront-ui.single-product .tm-extra-product-options .tm-epo-field-label,
+body.idm-storefront-ui.single-product .tm-extra-product-options .tm-epo-element-label {
+  color: var(--idm-ui-ink);
+  font-weight: 650;
+}
+body.idm-storefront-ui.single-product input.tmcp-checkbox {
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+}
+body.idm-storefront-ui.single-product .tm-final-totals {
+  border-top: 1px solid var(--idm-ui-line);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+body.idm-storefront-ui.single-product .tm-final-totals .price,
+body.idm-storefront-ui.single-product .tm-final-totals strong {
+  color: var(--idm-ui-rose-dark);
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.cart .single_add_to_cart_button,
+body.idm-storefront-ui .woocommerce a.button,
+body.idm-storefront-ui .woocommerce button.button,
+body.idm-storefront-ui .woocommerce button.alt {
+  min-height: 46px;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 23px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--idm-ui-rose);
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.cart .single_add_to_cart_button:hover,
+body.idm-storefront-ui .woocommerce a.button:hover,
+body.idm-storefront-ui .woocommerce button.button:hover,
+body.idm-storefront-ui .woocommerce button.alt:hover {
+  color: #fff;
+  background: var(--idm-ui-rose-dark);
+}
+body.idm-storefront-ui.single-product .woocommerce div.product form.cart .quantity input.qty {
+  min-height: 46px;
+  border: 1px solid var(--idm-ui-line);
+  border-radius: 9px;
+}
+/* Woo Blocks — preserve their behavior and total calculations. */
+body.idm-storefront-ui :is(.wc-block-cart,.wc-block-checkout) {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: clamp(12px,2.5vw,28px);
+}
+body.idm-storefront-ui :is(.wc-block-cart,.wc-block-checkout) .wc-block-components-sidebar {
+  background: var(--idm-ui-soft);
+  padding: clamp(14px,2vw,24px);
+  border-radius: 13px;
+}
+body.idm-storefront-ui :is(.wc-block-cart,.wc-block-checkout) .wc-block-components-totals-item__value {
+  font-variant-numeric: tabular-nums;
+  color: var(--idm-ui-ink);
+}
+body.idm-storefront-ui .wc-block-components-button:not(.is-link) {
+  border-radius: 999px;
+  min-height: 46px;
+}
+body.idm-storefront-ui .wc-block-components-button:not(.is-link):not(:disabled) {
+  background: var(--idm-ui-rose);
+  color: #fff;
+}
+body.idm-storefront-ui .wc-block-components-button:not(.is-link):not(:disabled):hover {
+  background: var(--idm-ui-rose-dark);
+}
+/* Information hierarchy. No decorative photography or font asset requests. */
+body.idm-storefront-ui .woocommerce .woocommerce-breadcrumb {
+  font-size: .85rem;
+  color: var(--idm-ui-muted);
+  margin-bottom: 22px;
+}
+body.idm-storefront-ui .woocommerce .woocommerce-message {
+  border-top-color: var(--idm-ui-rose);
+}
+@media (max-width: 768px) {
+  body.idm-storefront-ui.single-product .woocommerce div.product {
+    padding: 0 15px;
+    margin: 15px auto 32px;
+  }
+  body.idm-storefront-ui.single-product .woocommerce div.product .summary {
+    width: 100%;
+  }
+  body.idm-storefront-ui.single-product .woocommerce div.product form.cart .single_add_to_cart_button {
+    width: 100%;
+    margin-top: 12px;
+  }
+  body.idm-storefront-ui :is(.wc-block-cart,.wc-block-checkout) {
+    padding-inline: 8px;
+  }
+  body.idm-storefront-ui :is(.wc-block-cart,.wc-block-checkout) .wc-block-components-sidebar {
+    padding: 15px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.idm-storefront-ui * { scroll-behavior: auto; }
+}
