@@ -49,13 +49,13 @@ Created a no-gateway Woo Checkout order for **$1,148**, then a **$149 partial Wo
 - Final site readback: `blog_public=0`, `woocommerce_coming_soon=yes`, product #15 **draft**, 3 temporary TM choices on this draft only, **0** published global TM forms, **0** shipping zones, `woocommerce_calc_taxes=no`. WordPress media attachment count **1** (unchanged by R7 image-reference work).
 - Temporary Checkout orders #19 and #21 independently confirmed deleted. Synthetic partial-refund order/refund also deleted in the same test.
 - No `wp-content/debug.log` present during read-only inspection; **absence of a log is not evidence of no errors**. Previous intermittent Hostinger PHP CLI SIGKILL/137 had recovered but root cause remains uncertain.
-- GitHub PR #3 has no reported checks; manually executed lint and smoke tests must not be portrayed as GitHub CI.
+- GitHub CI was initially absent. A lightweight PR-only workflow was subsequently added at `.github/workflows/r7-smoke.yml`; **`r7-isolated-qa` PASS (4s)** on head `a1a8dc67`, [Actions run #40806454369](https://github.com/beyourlovercom/idollmatecom/actions/runs/40806454369). This runs PHP syntax and isolated unit smoke checks only — no actual Dev browser/checkout tests in CI.
 
 ## Remaining R7-J release conditions
 
 1. Select and authorize an **iDollmate-specific eligible TEST payment merchant**; finish payment acceptance, failed/3DS/cancel handling, webhook signature verification, gateway refund and rollback. No simulated refund can substitute.
 2. Complete branding / original storefront visual review and mobile real checkout confirmation. Do not auto-publish image URLs that return 403 or lack image reproduction rights.
-3. Add CI workflow/checks as applicable before merging source PR #3. Keep it **Draft / unmerged** until acceptance.
+3. Lightweight source CI is now PASS; keep PR #3 **Draft / unmerged** until external TEST payment and final storefront signoff. CI passing alone is not a release gate.
 4. Any Production deployment, migration off Shopify or DNS change requires separate explicit Owner **pass**.
 
 **Source:** [R7 Cart / Checkout UAT matrix](R7_TM_OPTIONS_CHECKOUT_MATRIX.md), [R7 Dev release checklist](R7_DEV_RELEASE_CHECKLIST.md), [PR #3](https://github.com/beyourlovercom/idollmatecom/pull/3).
