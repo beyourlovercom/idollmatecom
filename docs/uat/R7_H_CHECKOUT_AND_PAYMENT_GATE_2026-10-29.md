@@ -70,3 +70,10 @@ The private recovery utility remains in the authorized China Mac / Hostinger use
 - CI PHP isolated smoke passed; PR #3 still Draft and unmerged.
 
 **Decision**: Do not continue payment charges or create merchant-specific credentials during an unstable host period. No production change.
+
+## 5. Controlled reattempt / 2026-10-29 resource gate
+- After the direct-database rollback, an independent resource sample briefly improved to **53 account processes / ~2,731 MiB summed RSS**; native Node syntax and GitHub Actions isolated CI checks passed.
+- A fail-closed controlled browser diagnostic runner was prepared with a preflight threshold of **3,200 MiB summed RSS** (a conservative QA heuristic, **not a verified Hostinger LVE quota**). If the gate passed, it would use only the temporary Dev offline QA fixture and run a Chrome Checkout Block state/Store API trace; any PHP cleanup failure would invoke the strict Dev-only direct DB recovery. No billing provider was connected.
+- **The runner did NOT execute a new checkout**: before any fixture setup it measured **66 processes / 3,744 MiB RSS** and exited **13** at the resource preflight. Therefore zero new customer order, webhook, refund or merchant connection resulted from this attempt. Subsequent read-only sample was 63 processes / 3,428 MiB.
+- Server `/proc/self/cgroup` confirmed an **LVE memory cgroup path** (`/lvp2009124026/lve686797605`), but its memory limit/fault counter was not readable from the user's SSH namespace. So the **CloudLinux LVE usage context is confirmed, but the exact quota and fault metrics are not**. Obtain hPanel resource/fault metrics or Hostinger support evidence before attributing a precise root cause.
+- No Hostinger PHP workers, Chrome windows or READY machines were restarted. The separate Dev SQL rollback was already independently verified. **Do not run another Checkout browser transaction until resource gate and provider gating are satisfied.**
