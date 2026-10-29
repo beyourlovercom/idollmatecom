@@ -76,3 +76,46 @@ Only after all conditions below are met:
 **R8-D** facets, taxonomy browsing and SEO can proceed source-first in parallel while real Dev batch writes await approval. Payment merchant testing remains out of R8.
 
 [Source ownership](../architecture/R8_CATALOG_SCHEMA_V1.md) | [R7 closure](R7_ENGINEERING_SCOPE_CLOSURE_AND_R8_HANDOFF_2026-10-29.md) | [R8 A/B preflight](R8_A_B_OFFLINE_PREFLIGHT_2026-10-29.md).
+
+## Independent R8-C acceptance review — 2026-10-29
+
+**Outcome:** SOURCE/READ-ONLY UAT **PASS with blockers**; first real Woo Draft Canary **NOT AUTHORIZED / NOT TESTED**.
+
+### Discovered and fixed in this review
+
+- **Actual rollback correctness defect:** the guarded Woo adapter previously required `live_snapshot === preimport_snapshot` even during rollback, which would always reject a legitimately completed import because the batch's own new products appeared in the live snapshot. Fixed to compare the original snapshot while permitting **ONLY batch-tagged newly added IDs** and rejecting any changed baseline product/category/attribute.
+- **Deletion-scope defect:** rollback previously did not require an exact match between all database batch-tagged IDs and the per-batch journal IDs. Fixed; missing/extra/duplicate IDs now block all deletions.
+- Extracted pure PHP helpers (`r8_woo_batch_guards.php`) and added **16/16 PHP guard assertions** covering normal owned additions, in-progress journal recovery, foreign additions, changed/deleted baseline products, taxonomy changes, wrong batch, duplicate records, missing/extra journal IDs and repeat/rolled-back states.
+- Added a Woo **USD** currency gate to align CSV USD prices with runtime currency; require successful batch-journal creation and persistence before declaring apply successful, refusing silent continuation after an unexpected journal write failure.
+- **No guarded PHP apply or rollback was deployed or executed** against the real Dev database. PHP lint is not sufficient evidence to claim actual Woo CRUD rollback PASS.
+
+### Latest actual read-only protected Dev preview
+
+Read-only Woo snapshot was independently refreshed after the source changes:
+- Domain `https://dev.idollmate.com`; `blog_public=0`; `woocommerce_coming_soon=yes`.
+- Existing Woo records: **4** (2 Draft QA parents and 2 Woo internal child variations), unchanged as expected.
+- Installed categories: **`uncategorized` only**; global `pa_material` terms: **none**.
+- Four-line synthetic CSV preview: **0 SKU conflicts**, **5 pre-existing taxonomy blockers**, `ready_for_owner_review=false`, `dev_write_performed=false`.
+- `CATEGORY_NOT_INSTALLED` for `mini-dolls` and `full-body-dolls`.
+- `ATTRIBUTE_TERM_MISSING` for `pa_material:tpe` (simple + TPE variation) and `pa_material:silicone` (Silicone variation).
+- No taxonomy term, real product, image or customer record was created, changed or deleted.
+
+### Acceptance test status
+
+| Test | Evidence | State |
+|---|---|---|
+| 2,000 SKU/offline preflight, invalid rows and Preview/Confirm/Rollback simulation | **30/30 Python tests** | PASS |
+| Real PHP rollback baseline & journal integrity helper, isolated no-DB tests | **16/16 PHP tests** | PASS |
+| PHP syntax check, real source with Owner gate, snapshot/currency/journal guards | `php -l`, static review | PASS for syntax; runtime not proven |
+| Python/PHP canonical Dev snapshot SHA parity | Same hash from one original JSON document | PASS |
+| Read-only real Dev SKU / taxonomy preview | 4 existing SKUs / 5 taxonomy blockers | PASS for detection; import BLOCKED |
+| Woo real Dev Draft create, repeat confirm, real rollback | **No write authorized or run** | NOT TESTED |
+| R7 unchanged, Dev safe | Read-back `noindex=0`, Coming Soon=yes, Draft, BACS=no | PASS |
+
+### Exact next separate approval gate
+
+**Gate T — taxonomy install (separate Dev write):** Obtain Owner `pass` for **only** `product_cat` terms `mini-dolls` and `full-body-dolls` plus Woo global attribute `pa_material` with terms `tpe` and `silicone` (with customer-visible labels approved first). Do not publish categories/products or touch Production.
+
+**Gate C — first real Dev import Canary (later approval):** After taxonomy readback & re-preview show **zero blockers**, obtain a **second explicit Owner `pass`** identifying plan ID, CSV SHA, exact rows (max 25), Draft-only, rollback strategy and source licensing. First evaluate source adapter compatibility and recovery under a fresh non-Production Woo staging fixture. Only then run Dev, verify Woo IDs/attributes/price and perform controlled batch rollback.
+
+For both gates, current user instruction **"进入验收"** authorizes read-only validation and offline simulations only, **not Dev database writes**. R8 PR #5 remains Draft against the R7 Draft branch; no Production Shopify access or payment work.
