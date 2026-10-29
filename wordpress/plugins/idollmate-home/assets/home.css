@@ -66,3 +66,27 @@
 @media (prefers-reduced-motion: reduce) {
   .idm-home__cta, .idm-home__category { transition: none; }
 }
+
+/* R7-F: accessible discovery navigation and three-step original guide. */
+.idm-home__quick-links { display:flex; flex-wrap:wrap; gap:12px 20px; margin-top:25px; }
+.idm-home__quick-links a { color:var(--idm-muted); font-size:.84rem; font-weight:650; text-decoration:underline; text-underline-offset:5px; text-decoration-color:#b6a1a8; }
+.idm-home__quick-links a:hover { color:var(--idm-accent); }
+.idm-home__guide { margin-top:clamp(36px,5vw,72px); padding:clamp(24px,4vw,48px); background:#f8f4f4; border-radius:20px; }
+.idm-home__guide .idm-home__section-head { align-items:center; }
+.idm-home__guide-intro { max-width:30ch; font-size:.92rem; color:var(--idm-muted); margin:0; line-height:1.5; }
+.idm-home__guide-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.idm-home__guide-card { min-width:0; min-height:205px; background:var(--idm-surface); border:1px solid #ebe5e5; padding:clamp(20px,2.2vw,31px); border-radius:13px; }
+.idm-home__guide-number { display:inline-flex; align-items:center; justify-content:center; width:39px; height:39px; background:#f3e5e9; border-radius:50%; color:var(--idm-accent); font-size:.79rem; font-weight:750; font-variant-numeric:tabular-nums; }
+.idm-home__guide-card h3 { color:var(--idm-ink); font-size:1.12rem; font-weight:700; letter-spacing:-.015em; line-height:1.32; margin:19px 0 9px; }
+.idm-home__guide-card p { color:var(--idm-muted); margin:0; font-size:.92rem; line-height:1.6; }
+.idm-home__empty { line-height:1.65; border:1px solid #eeebea; }
+@media (max-width:860px) {
+  .idm-home__guide-grid { grid-template-columns:1fr; }
+  .idm-home__guide-card { min-height:0; }
+}
+@media (max-width:540px) {
+  .idm-home__hero-copy { padding-bottom:34px; }
+  .idm-home__quick-links { gap:10px 18px; }
+  .idm-home__guide { padding:20px 16px; border-radius:14px; }
+  .idm-home__guide-card { padding:20px; }
+}
