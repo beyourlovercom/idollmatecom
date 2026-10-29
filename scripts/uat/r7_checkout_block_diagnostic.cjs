@@ -131,6 +131,21 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       return {url:location.pathname,checkout,payment,validationErrors:valErrors,hasValidationErrors,button,boxes,missing,cartTotals,customer,prices,overview,has_QA_gateway:document.body.innerText.includes('R7 TEST ONLY - DO NOT PAY'),
         has_expected_total:document.body.innerText.includes('$1,348.00')};
     });
+    // Woo Cart/Checkout Blocks submit async customer changes using a debounced
+    // Store API batch. Avoid clicking a button whose React node is about to be
+    // replaced during that pending update (the observed first-click no-op).
+    await page.waitForLoadState('networkidle',{timeout:12000}).catch(()=>null);
+    await sleep(800);
+    const submitButton=page.locator('.wc-block-components-checkout-place-order-button');
+    await submitButton.scrollIntoViewIfNeeded();
+    await submitButton.focus();
+    await sleep(450);
+    const stability=await page.evaluate(()=>{
+      const button=document.querySelector('.wc-block-components-checkout-place-order-button');
+      return {hasButton:!!button,disabled:button?.disabled,reactClick:!!button&&Object.keys(button).some(k=>k.startsWith('__reactProps')&&typeof button[k]?.onClick==='function'),focusIsButton:document.activeElement===button};
+    });
+    console.log('R7_BUTTON_STABILITY',JSON.stringify(stability));
+    if(!stability.hasButton||stability.disabled||!stability.reactClick||!stability.focusIsButton)throw Error('Checkout Place Order button not ready for first click');
     const before=await state();
     console.log('R7_CHECKOUT_BEFORE',JSON.stringify(before));
     await page.evaluate(()=>{
