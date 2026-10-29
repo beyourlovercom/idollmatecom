@@ -81,6 +81,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await page.locator('#shipping-state').selectOption('CA');
     await fill('shipping-postcode','90001');
     await fill('shipping-phone','2025550132');
+    // Browser-realistic focus completion. Woo Blocks may flush address changes
+    // when the last field loses focus, re-rendering the Place Order button.
+    // Settle that state BEFORE clicking instead of relying on an initial lost click.
+    await page.locator('#shipping-phone').blur();
     await sleep(1700);
     // Woo Blocks asynchronously calculates shipping after address edits.
     // Wait for the expected test-only total; never place an order on stale totals.
@@ -150,27 +154,26 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     if(!before.has_QA_gateway||!before.has_expected_total||before.missing.length)
       throw Error('Dev QA checkout preconditions unmet; not submitting');
     events.length=0;
+    page.on('framenavigated', frame=>{if(frame===page.mainFrame())events.push({kind:'navigation',path:safePath(frame.url())});});
     await page.evaluate(()=>{window.__r7ClickCount=0; document.addEventListener('click',e=>{
       if(e.target?.closest?.('.wc-block-components-checkout-place-order-button'))window.__r7ClickCount++;
     },{capture:true});});
     await page.locator('.wc-block-components-checkout-place-order-button').click({timeout:12000});
-    await sleep(3000);
+    await sleep(6500);
     const first=await state();
-    const sentCheckout=()=>events.some(e=>e.kind==='request' && e.path.includes('/wc/store/v1/checkout'));
-    console.log('R7_CLICK_FIRST',JSON.stringify({checkout:first.checkout,validationErrors:first.validationErrors,button:first.button,clickCount:await page.evaluate(()=>window.__r7ClickCount),submitted:sentCheckout()}));
-    if(!sentCheckout() && first.checkout?.status==='idle' && !first.checkout?.hasError && page.url().includes('/checkout/')){
-      // UI regression isolation: no programmatic store dispatch and never double-submit
-      await page.locator('.wc-block-components-checkout-place-order-button').click({timeout:12000});
-      await sleep(4700);
-      console.log('R7_CLICK_SECOND',JSON.stringify({after:(await state()).checkout,clickCount:await page.evaluate(()=>window.__r7ClickCount),submitted:sentCheckout()}));
-    }
+    const submitted=events.some(e=>e.kind==='request'&&e.path.includes('/wc/store/v1/checkout'));
+    console.log('R7_CLICK_ONCE',JSON.stringify({status:first.checkout,validationErrors:first.validationErrors,
+      button:first.button,clickCount:await page.evaluate(()=>window.__r7ClickCount),
+      submitted,orderReceived:/order-received|order-confirmation/.test(page.url())}));
     console.log('R7_CHECKOUT_AFTER',JSON.stringify(await state()));
     console.log('R7_CHECKOUT_EVENTS',JSON.stringify(events.slice(-45)));
     console.log('R7_CHECKOUT_TRANSITIONS',JSON.stringify(await page.evaluate(()=>window.__r7StateTransitions||[])));
-    console.log('R7_BUTTON_FINAL',JSON.stringify(await page.locator('.wc-block-components-checkout-place-order-button').evaluate(el=>({
-      disabled:el.disabled,ariaDisabled:el.getAttribute('aria-disabled'),text:el.textContent?.trim(),
-      type:el.getAttribute('type'),pointerEvents:getComputedStyle(el).pointerEvents
-    }))));
+    if(await page.locator('.wc-block-components-checkout-place-order-button').count()){
+      console.log('R7_BUTTON_FINAL',JSON.stringify(await page.locator('.wc-block-components-checkout-place-order-button').evaluate(el=>({
+        disabled:el.disabled,ariaDisabled:el.getAttribute('aria-disabled'),text:el.textContent?.trim(),
+        type:el.getAttribute('type'),pointerEvents:getComputedStyle(el).pointerEvents
+      }))));
+    }
     console.log('R7_CHECKOUT_ORDER_RECEIVED',/order-received|order-confirmation/.test(page.url()));
     await ctx.close();
   } finally {await browser.close();}
