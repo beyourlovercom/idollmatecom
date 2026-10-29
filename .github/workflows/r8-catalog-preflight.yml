@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'scripts/catalog/**'
-      - 'tests/test_r8_catalog_preflight.py'
+      - 'tests/test_r8_catalog_*.py'
       - 'docs/architecture/R8_CATALOG_SCHEMA_V1.md'
       - '.github/workflows/r8-catalog-preflight.yml'
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
       - name: Python syntax
         run: |
-          python -m py_compile scripts/catalog/r8_catalog_preflight.py tests/test_r8_catalog_preflight.py
+          python -m py_compile scripts/catalog/r8_catalog_preflight.py scripts/catalog/r8_catalog_batch.py tests/test_r8_catalog_preflight.py tests/test_r8_catalog_batch.py
       - name: Isolated tests, including 2000-SKU scale
         run: |
-          python -m unittest discover -s tests -p 'test_r8_catalog_preflight.py' -v
+          python -m unittest discover -s tests -p 'test_r8_catalog_*.py' -v
