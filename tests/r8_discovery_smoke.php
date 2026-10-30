@@ -90,4 +90,50 @@ $block_query=idm_discovery_block_query_vars(array('post_type'=>'product'),$block
 test(!isset($block_query['tax_query']),'Nonarchive collection unaffected');
 $out=idm_discovery_block_frontend('SAFE_BLOCK',array('blockName'=>'woocommerce/product-collection','attrs'=>array('query'=>array('inherit'=>true))),$block);
 test($out==='SAFE_BLOCK','Nonarchive block output untouched');
+
+// Cross-environment QA fixture: these IDs intentionally differ from historic Dev 32–35.
+class FakeQABatchProduct {
+    public function __construct(
+        public string $sku, public string $type, public string $status,
+        public string $visibility, public string $batch, public int $parent=0
+    ) {}
+    public function get_sku():string{return $this->sku;}
+    public function get_meta($key,$single=true):string{return $key==='_idm_r8_batch_id'?$this->batch:'';}
+    public function get_status():string{return $this->status;}
+    public function get_catalog_visibility():string{return $this->visibility;}
+    public function is_type($type):bool{return $this->type===$type;}
+    public function get_parent_id():int{return $this->parent;}
+}
+function wc_get_product_id_by_sku($sku):int{return $GLOBALS['qa_sku_ids'][$sku]??0;}
+function wc_get_product($id){return $GLOBALS['qa_products'][$id]??false;}
+$batch=IDM_DISCOVERY_BATCH;
+$GLOBALS['qa_sku_ids']=array(
+    'IDM-R8-EXAMPLE-SIMPLE'=>132, 'IDM-R8-EXAMPLE-PARENT'=>133,
+    'IDM-R8-EXAMPLE-TPE'=>134, 'IDM-R8-EXAMPLE-SIL'=>135
+);
+$GLOBALS['qa_products']=array(
+    132=>new FakeQABatchProduct('IDM-R8-EXAMPLE-SIMPLE','simple','draft','hidden',$batch),
+    133=>new FakeQABatchProduct('IDM-R8-EXAMPLE-PARENT','variable','draft','hidden',$batch),
+    134=>new FakeQABatchProduct('IDM-R8-EXAMPLE-TPE','variation','publish','visible',$batch,133),
+    135=>new FakeQABatchProduct('IDM-R8-EXAMPLE-SIL','variation','publish','visible',$batch,133)
+);
+$journal=array('state'=>'applied','created_count'=>4,'ids'=>array(132,133,134,135));
+test(idm_discovery_qa_batch_ids($journal,$batch)===array('simple'=>132,'parent'=>133,'tpe'=>134,'sil'=>135),
+    'Non-Dev Local IDs accepted by exact SKU and journal');
+$wrong=$journal;$wrong['ids']=array(32,33,34,35);
+test(idm_discovery_qa_batch_ids($wrong,$batch)===array(),'Historic Dev IDs reject on Local');
+$wrong=$journal;$wrong['created_count']=3;
+test(idm_discovery_qa_batch_ids($wrong,$batch)===array(),'Incomplete batch journal fails closed');
+$GLOBALS['qa_products'][135]->parent=999;
+test(idm_discovery_qa_batch_ids($journal,$batch)===array(),'Mismatched variation parent fails closed');
+$GLOBALS['qa_products'][135]->parent=133;
+$GLOBALS['qa_products'][132]->status='publish';
+test(idm_discovery_qa_batch_ids($journal,$batch)===array(),'Published parent fixture rejected');
+$GLOBALS['qa_products'][132]->status='draft';
+$GLOBALS['qa_products'][134]->batch='other';
+test(idm_discovery_qa_batch_ids($journal,$batch)===array(),'Mismatched batch ownership rejected');
+$GLOBALS['qa_products'][134]->batch=$batch;
+unset($GLOBALS['qa_sku_ids']['IDM-R8-EXAMPLE-SIL']);
+test(idm_discovery_qa_batch_ids($journal,$batch)===array(),'Missing variation SKU rejected');
+
 echo 'R8_DISCOVERY_ISOLATED_TESTS='.$GLOBALS['idm_checks'].' PASS'.PHP_EOL;
