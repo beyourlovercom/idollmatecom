@@ -162,6 +162,47 @@ function idm_discovery_admin_qa_menu(): void {
     add_submenu_page('edit.php?post_type=product','iDollmate R8 QA','iDollmate R8 QA',
         'manage_woocommerce','idollmate-r8-qa','idm_discovery_admin_qa');
 }
+/**
+ * Validate the exact synthetic QA batch in THIS Woo database.
+ * A historical server's post IDs must never be used to locate Local fixtures.
+ * Return ordered IDs only when SKU, batch, type, parentage and journal agree.
+ */
+function idm_discovery_qa_batch_ids($journal, string $batch): array {
+    if (!is_array($journal) || ($journal['state'] ?? null) !== 'applied'
+        || ($journal['created_count'] ?? null) !== 4
+        || !is_array($journal['ids'] ?? null)
+        || !function_exists('wc_get_product_id_by_sku')) { return array(); }
+    $skus=array(
+        'simple'=>'IDM-R8-EXAMPLE-SIMPLE',
+        'parent'=>'IDM-R8-EXAMPLE-PARENT',
+        'tpe'=>'IDM-R8-EXAMPLE-TPE',
+        'sil'=>'IDM-R8-EXAMPLE-SIL',
+    );
+    $ids=array();
+    foreach ($skus as $kind=>$sku) {
+        $pid=(int)wc_get_product_id_by_sku($sku);
+        $product=$pid>0 ? wc_get_product($pid) : false;
+        if (!$product || $product->get_sku()!==$sku
+            || $product->get_meta('_idm_r8_batch_id',true)!==$batch) { return array(); }
+        if ($kind==='simple' || $kind==='parent') {
+            if (!$product->is_type($kind==='simple'?'simple':'variable')
+                || $product->get_status()!=='draft'
+                || $product->get_catalog_visibility()!=='hidden') { return array(); }
+        } elseif (!$product->is_type('variation')) { return array(); }
+        $ids[$kind]=$pid;
+    }
+    if (count(array_unique(array_values($ids)))!==4) { return array(); }
+    foreach (array('tpe','sil') as $kind) {
+        $child=wc_get_product($ids[$kind]);
+        if ((int)$child->get_parent_id()!==$ids['parent']) { return array(); }
+    }
+    $expected=array_map('intval',$journal['ids']);
+    $actual=array_values($ids);
+    sort($expected,SORT_NUMERIC);
+    sort($actual,SORT_NUMERIC);
+    return $expected===$actual ? $ids : array();
+}
+
 function idm_discovery_admin_qa(): void {
     if (!current_user_can('manage_woocommerce')) { wp_die('Forbidden'); }
     if (!function_exists('wc_get_product')) { wp_die('WooCommerce unavailable'); }
@@ -171,9 +212,8 @@ function idm_discovery_admin_qa(): void {
     $material=idm_discovery_material_from_raw($_GET['idm_material']??null);
     echo '<div class="wrap idm-r8-qa"><h1>iDollmate R8 Catalog &amp; Product QA</h1>';
     echo '<p>Administrator-only preview of synthetic QA drafts. Products remain hidden and unpublished.</p>';
-    if (!is_array($journal) || ($journal['state']??null)!=='applied'
-        || ($journal['created_count']??null)!==4
-        || ($journal['ids']??null)!==array(32,33,34,35)) {
+    $qa_ids=idm_discovery_qa_batch_ids($journal,$batch);
+    if (!$qa_ids) {
         echo '<p class="notice notice-error">Approved QA batch not in verified state. Preview disabled.</p></div>';
         return;
     }
@@ -192,7 +232,7 @@ function idm_discovery_admin_qa(): void {
     echo '<a href="'.esc_url($root).'">Reset</a></form>';
     echo '<div class="idm-r8-qa__grid">';
     $found=0;
-    foreach (array(32,33) as $pid) {
+    foreach (array($qa_ids['simple'],$qa_ids['parent']) as $pid) {
         $product=wc_get_product($pid);
         if (!$product || $product->get_status()!=='draft'
             || $product->get_catalog_visibility()!=='hidden'
