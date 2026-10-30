@@ -1,6 +1,6 @@
 # R8-E discovery 0.1.2 — PRE-APPROVAL WordPress target release candidate
 
-**Date:** 2026-10-30. **Status:** prepared package, **NOT AUTHORIZED TO DEPLOY**. Final production approval is blocked by OPEN A/B in `docs/uat/R8_E_WINDOWS_LOCAL_BROWSER_AND_RELEASE_GATES_2026-10-30.md`.
+**Date:** 2026-10-30. **Status:** prepared package, **NOT AUTHORIZED TO DEPLOY**. Authenticated Local Draft browser gate **A PASSED** on 2026-10-30; original Hostinger 2.1.15 storefront visual-theme parity **B OPEN** and current authenticated target inventory/backup verification still incomplete. See `docs/uat/R8_E_WINDOWS_LOCAL_BROWSER_AND_RELEASE_GATES_2026-10-30.md`.
 
 ## Target and exact scope
 - **Only deployment target:** `https://dev.idollmate.com`, the official final WordPress/WooCommerce target. The domain prefix is historical. **Do not deploy to or modify `https://idollmate.com` Shopify.**
@@ -13,12 +13,13 @@
 - Repository governance/docs/tests are for review only, **not** copied to WordPress webroot. In particular do not deploy or run `scripts/catalog/r8_woo_dev_guarded_apply.php`, do not re-Apply the historical batch, and do not deploy any unapproved R7 files.
 
 ## Mandatory release preflight (all read-only until Owner's separate PASS)
-1. **Resolve OPEN A/B:** authenticated real Chrome Draft/Hidden Woo preview and manager QA screenshots, plus target-theme equivalent visuals/layout and plugin compatibility. Existing local functional tests and Twenty Twenty-Five Chrome results do not resolve them.
-2. Confirm via authorized server access the exact WordPress install root and host; record runtime WP, PHP, Woo, active `hostinger-ai-theme` and dependencies; detect drift from historical WP7.1.4/Woo11.2.1, Hostinger AI 2.1.15. Public header currently indicated PHP8.3.36 and noindex/nofollow but authenticated runtime data require independent revalidation.
-3. Read only: `blog_public=0`, Woo `woocommerce_coming_soon=yes`, USD currency, discovery currently `0.1.1` with exact installed file checksum, original QA batch `cfc3ead963a72e0aa44740d5` journal `applied`, exact SKUs `IDM-R8-EXAMPLE-SIMPLE/PARENT/TPE/SIL` and target Woo IDs (historically 32–35); parent Draft/Hidden; no published QA top-level product, no product changes/deletions/orders. Reject unexpected drift.
-4. Verify GitHub Draft head and commit immutability, CI/tests, `git diff --check`, WordPress package checksum and access/security. PR #3 and PR #5 remain Draft and unmerged.
-5. Verify enough disk capacity for site backup. Capture full protected WP **filesystem + DB** snapshot with hosting tools and independently inspect backup manifest/checksum; copy the **exact current live plugin folder** to a separate timestamped rollback archive outside webroot. Record current plugin PHP/CSS hashes, active-state flag and plugin version. No backup secrets or customer data in public GitHub.
-6. Verify read-only restore plan with the real host path. If any backup fails, **STOP**; no plugin update.
+1. **Gate A PASS:** authenticated actual Chrome original Draft/Hidden 18/18 on isolated Local using a temporary native WordPress shop-manager account, credentials deleted; existing actual target admin QA screenshot from 2026-10-29 and today's Local screenshot visually agree on admin cards/filters, **not** full theme rendering.
+2. **Gate B OPEN:** clone the real target Hostinger AI 2.1.15 theme under authorized access or perform equivalent authorized real target product-page evidence comparison; verify original Woo product template, mobile layout, CSS and PHP8.3 compatibility. No live writes. If this is deliberately waived because the 0.1.2 functional change is manager-only, it requires **a separately explicit Owner-approved risk acceptance** and target smoke; do not silently record PASS.
+3. Confirm via authorized server access the exact WordPress install root and host; record runtime WP, PHP, Woo, active `hostinger-ai-theme` and dependencies; detect drift from historical WP7.1.4/Woo11.2.1, Hostinger AI 2.1.15. Public header currently indicated PHP8.3.36 and noindex/nofollow but authenticated runtime data require independent revalidation.
+4. Read only: `blog_public=0`, Woo `woocommerce_coming_soon=yes`, USD currency, discovery currently `0.1.1` with exact installed file checksum, original QA batch `cfc3ead963a72e0aa44740d5` journal `applied`, exact SKUs `IDM-R8-EXAMPLE-SIMPLE/PARENT/TPE/SIL` and target Woo IDs (historically 32–35); parent Draft/Hidden; no published QA top-level product, no product changes/deletions/orders. Reject unexpected drift.
+5. Verify GitHub Draft head and commit immutability, CI/tests, `git diff --check`, WordPress package checksum and access/security. PR #3 and PR #5 remain Draft and unmerged.
+6. Verify enough disk capacity for site backup. Capture full protected WP **filesystem + DB** snapshot with hosting tools and independently inspect backup manifest/checksum; copy the **exact current live plugin folder** to a separate timestamped rollback archive outside webroot. Record current plugin PHP/CSS hashes, active-state flag and plugin version. No backup secrets or customer data in public GitHub.
+7. Verify read-only restore plan with the real host path. If any backup fails, **STOP**; no plugin update.
 
 ## Controlled write phase — only after explicit Owner PASS
 1. Declare exact approved `site, plugin, source SHA, ZIP SHA, backup ID`; do not touch Shopify, DNS, themes, Woo products, SEO visibility, payment or orders. Notify the owner of the bounded release.
@@ -34,5 +35,8 @@
 - Re-read plugin activation, Woo pages, Draft/Hidden four SKU, batch journal, noindex/Coming Soon, logs, and the original admin QA after rollback. Document post-rollback exact checksums and Owner notification; do not claim success before readback.
 - The local synthetic published fixture journals are **not production rollback scripts** and must never run against the target.
 
+## Local rollback rehearsal evidence
+On 2026-10-30 under **isolated Windows Local only**, scoped installed 0.1.2 PHP/CSS backup was made, prior Git source 0.1.1 PHP temporarily installed, WP CLI separately read back **0.1.1 PASS**, then the backed-up 0.1.2 PHP/CSS restored and a fresh WP CLI confirmed **0.1.2 PASS and both SHA256 hashes identical**. No production plugin, database or order changes. The saved previous source version from Git is **not** proof of the target's actual 0.1.1 byte identity; only a fresh, verified target backup may be used to roll it back.
+
 ## Current verdict
-**Ready as a sealed candidate package / precise manifest, NOT READY FOR PRODUCTION DEPLOYMENT.** Unresolved authenticated browser + Hostinger theme parity gates are explicit; full target authenticated read-only preflight/backup IDs have not been executed yet. **No Owner release PASS requested or assumed.**
+**Ready as a sealed candidate package / precise manifest; Local actual Draft browser and rollback rehearsal PASS, NOT READY FOR PRODUCTION DEPLOYMENT.** Gate B full target customer-theme parity and actual target authenticated read-only preflight / backup IDs have not been completed. **No Owner release PASS requested or assumed.**
