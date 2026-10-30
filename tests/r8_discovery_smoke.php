@@ -19,7 +19,7 @@ function test($result,$name):void{
 }
 require dirname(__DIR__).'/wordpress/plugins/idollmate-discovery/idollmate-discovery.php';
 
-test(IDM_DISCOVERY_VERSION==='0.1.1','Plugin version');
+test(IDM_DISCOVERY_VERSION==='0.1.2','Plugin version');
 test(count($GLOBALS['idm_hooks']['actions']['woocommerce_product_query']??[])===1,'Woo product query hook');
 test(count($GLOBALS['idm_hooks']['actions']['woocommerce_before_shop_loop']??[])===1,'Native Woo filter UI hook');
 test(count($GLOBALS['idm_hooks']['actions']['admin_menu']??[])===1,'Admin-only QA entry');
