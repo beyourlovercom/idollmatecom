@@ -6,10 +6,12 @@ reversing the exact, approved admin-only deltas. Read-only, no network.
 """
 from __future__ import annotations
 import difflib
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
 
+EXPECTED_CANDIDATE_SHA256 = "48b1392d28bcf9076c712165293cf4d2554bbec5d9d5024f1a5c9e0e79d006c6"
 OLD_REF = "a417475"
 FILE = "wordpress/plugins/idollmate-discovery/idollmate-discovery.php"
 
@@ -21,6 +23,8 @@ def replace_exact(text: str, old: str, replacement: str) -> str:
 
 
 def verify(old: str, current: str) -> None:
+    if hashlib.sha256(current.encode('utf-8')).hexdigest() != EXPECTED_CANDIDATE_SHA256:
+        raise ValueError('Candidate file is not the exact sealed 0.1.2 PHP byte sequence')
     if "Version: 0.1.1" not in old or "Version: 0.1.2" not in current:
         raise ValueError("Version baseline/candidate mismatch")
     normalized = replace_exact(current, " * Version: 0.1.2", " * Version: 0.1.1")
