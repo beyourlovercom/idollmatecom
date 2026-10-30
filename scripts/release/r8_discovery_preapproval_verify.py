@@ -11,11 +11,11 @@ from zipfile import ZipFile
 
 EXPECTED = {
     "idollmate-discovery/idollmate-discovery.php":
-        "48b1392d28bcf9076c712165293cf4d2554bbec5d9d5024f1a5c9e0e79d006c6",
+        "0b8a126785a29d99351f196eb19bc58b5fc7dc89d9935aabdc7c3391f192905d",
     "idollmate-discovery/assets/discovery.css":
-        "dcdbc25b3bba8227f16649ba84753b913dd5ae2bbc56b19628efa4c9c179e86b",
+        "efb9b680c95b6d0c7652ef959904880e1c506fa985b5faf48581127766efbdce",
 }
-ZIP_SHA = "95d1556d8e130730ea7099882c17fd58103f8e5fb8431619bda1f6fbe2e6bc90"
+ZIP_SHA = "6053a965238180c70f941b848a27466c840edecbe643123001f429ba32146489"
 BRANCH = "feat/r8-catalog-os-v1"
 
 
@@ -46,11 +46,12 @@ def main() -> int:
         if sorted(names) != sorted(EXPECTED):
             raise RuntimeError(f"Unexpected ZIP membership: {names!r}")
         for name, digest in EXPECTED.items():
-            source_file = root / "wordpress" / "plugins" / name
-            local_bytes = source_file.read_bytes()
+            git_blob = subprocess.check_output(
+                ["git", "-C", str(root), "show", "HEAD:wordpress/plugins/" + name]
+            )
             zip_bytes = z.read(name)
-            if sha(local_bytes) != digest or sha(zip_bytes) != digest or local_bytes != zip_bytes:
-                raise RuntimeError(f"Source/archive mismatch: {name}")
+            if sha(git_blob) != digest or sha(zip_bytes) != digest or git_blob != zip_bytes:
+                raise RuntimeError(f"Raw Git blob/archive byte mismatch: {name}")
         php = z.read("idollmate-discovery/idollmate-discovery.php")
         if b"Version: 0.1.2" not in php or b"IDM_DISCOVERY_VERSION = '0.1.2'" not in php:
             raise RuntimeError("Unexpected plugin version")
