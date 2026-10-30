@@ -20,8 +20,13 @@ development:
   observed_wordpress: 7.1.4
   observed_woocommerce: 11.2.1
   observed_php: 8.2.29
-  observed_theme: twentytwentyfive
-  production_theme_parity: pending
+  observed_theme: hostinger-ai-theme
+  observed_theme_version: 2.1.15
+  production_theme_parity: exact_theme_files_local_browser_pass_php_runtime_differs
+  theme_readonly_clone_verified_sha256: ebfbf9d0b7a3db2546c090b7656e4f506d30050016bfc0f82783c88244b866a3
+  hostinger_local_builder_state: mirrored_nonsecret_only
+  hostinger_local_api_token: synthetic_nonfunctional_no_real_token
+  wp_http_external_blocked_locally: true
   create_if_absent: only_after_noninterference_preflight
   unique_database: true
   avoid_other_local_sites: true
@@ -32,6 +37,10 @@ production_target:
   initial_noindex: preserve
   initial_coming_soon: preserve
   launch_indexing_requires_separate_approval: true
+  observed_php: 8.3.36
+  observed_theme: hostinger-ai-theme
+  observed_theme_version: 2.1.15
+  observed_woocommerce: 11.2.1
 excluded:
   shopify: https://idollmate.com
   dns_changes: true
