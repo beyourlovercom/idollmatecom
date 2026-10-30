@@ -1,0 +1,47 @@
+site: idollmate
+schema_version: 1
+shared_skill: beyourlovercom/skills-webdev/skills/rapid-webdev/SKILL.md
+site_skill: skills/idollmate/SKILL.md
+governance: AGENTS.md
+repository: beyourlovercom/idollmatecom
+source_branch: feat/r8-catalog-os-v1
+depends_on_branch: feat/r7-original-catalog-v1
+protected_pull_requests: [3, 5]
+tracking_issue: 4
+platform: wordpress_woocommerce
+currency: USD
+development:
+  device: windows
+  runtime: local_wordpress
+  site: idollmate-isolated
+  create_if_absent: only_after_noninterference_preflight
+  unique_database: true
+  avoid_other_local_sites: true
+production_target:
+  url: https://dev.idollmate.com
+  environment_role: final_wordpress_production
+  deployment_requires_explicit_owner_pass: true
+  initial_noindex: preserve
+  initial_coming_soon: preserve
+  launch_indexing_requires_separate_approval: true
+excluded:
+  shopify: https://idollmate.com
+  dns_changes: true
+  live_payments: true
+  real_customer_order_data: true
+  unlicensed_competitor_assets: true
+qa:
+  fixture_visibility: draft_hidden
+  lookup: sku_plus_batch_id
+  desktop_and_mobile_browser_required: true
+  mobile_width_px: 390
+  multi_page_catalog_requires_real_fixture: true
+operations:
+  S1: authorized_sources_read_only
+  S2_A: windows_local
+  S2_B: windows_local
+  S2_C: production_target_only_after_approval
+  S3: production_target
+  S4: production_target
+  S5: production_target_approved_content_only
+  S6: production_target_approved_content_only
