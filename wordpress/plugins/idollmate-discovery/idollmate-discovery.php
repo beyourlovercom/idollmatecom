@@ -2,13 +2,13 @@
 /**
  * Plugin Name: iDollmate Catalog Discovery
  * Description: Woo-native category/material discovery, SEO canonical and restricted R8 QA preview.
- * Version: 0.1.1
+ * Version: 0.1.2
  * Requires PHP: 8.1
  * Text Domain: idollmate-discovery
  * License: GPL-2.0-or-later
  */
 defined('ABSPATH') || exit;
-const IDM_DISCOVERY_VERSION = '0.1.1';
+const IDM_DISCOVERY_VERSION = '0.1.2';
 const IDM_DISCOVERY_BATCH = 'cfc3ead963a72e0aa44740d5';
 
 /* Root taxonomy and variation model belong to WooCommerce; no migrations,
