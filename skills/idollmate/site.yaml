@@ -14,6 +14,14 @@ development:
   device: windows
   runtime: local_wordpress
   site: idollmate-isolated
+  site_url: http://idollmate-isolated.local
+  windows_path: D:\\ai\\idollmate-isolated
+  observed_mysql_port: 10030
+  observed_wordpress: 7.1.4
+  observed_woocommerce: 11.2.1
+  observed_php: 8.2.29
+  observed_theme: twentytwentyfive
+  production_theme_parity: pending
   create_if_absent: only_after_noninterference_preflight
   unique_database: true
   avoid_other_local_sites: true
