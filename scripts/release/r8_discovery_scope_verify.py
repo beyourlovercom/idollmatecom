@@ -23,8 +23,6 @@ def replace_exact(text: str, old: str, replacement: str) -> str:
 
 
 def verify(old: str, current: str) -> None:
-    if hashlib.sha256(current.encode('utf-8')).hexdigest() != EXPECTED_CANDIDATE_SHA256:
-        raise ValueError('Candidate file is not the exact sealed 0.1.2 PHP byte sequence')
     if "Version: 0.1.1" not in old or "Version: 0.1.2" not in current:
         raise ValueError("Version baseline/candidate mismatch")
     normalized = replace_exact(current, " * Version: 0.1.2", " * Version: 0.1.1")
@@ -61,7 +59,10 @@ def main() -> int:
     old = subprocess.check_output(
         ["git", "-C", str(root), "show", f"{OLD_REF}:{FILE}"],
         stderr=subprocess.DEVNULL).decode("utf-8")
-    current = (root / FILE).read_text(encoding="utf-8")
+    raw = (root / FILE).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != EXPECTED_CANDIDATE_SHA256:
+        raise ValueError("Candidate file differs from sealed 0.1.2 PHP bytes")
+    current = raw.decode("utf-8").replace("\r\n", "\n")
     verify(old, current)
     print("R8_DISCOVERY_012_SCOPE_PASS admin QA SKU/journal resolver only, plugin version only; ALL OTHER PHP BYTES unchanged from R8 0.1.1")
     print("Theme, frontend archive hooks, checkout, product detail rendering, scripts and CSS source changes=ZERO")
