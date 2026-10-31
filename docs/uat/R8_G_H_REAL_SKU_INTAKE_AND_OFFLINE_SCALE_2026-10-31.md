@@ -43,3 +43,9 @@ This `20261031` SKU snapshot is for **preliminary read-only review only**, not a
 5. **R8-J performance:** 2,000-row real-data dry-run and paginated archive tests, then approved small batches, not fake content at scale. No payment tests or Shopify/DNS changes.
 
 **Current verdict:** R8-G baseline/offline scale PASS; R8-H source/license/editorial review OPEN; **production import 0, no new catalog items created; PR #3 and PR #5 remain Draft/unmerged**.
+
+## Additional rights gate negative regression and source-worktree verification
+- **40/40 R8 Python tests PASS** on isolated Windows after the evidence gate was added (31 existing + 9 source rights tests); `git diff --check` clean.
+- Synthetic **2,000-row rights rejection** was validated against the actual 8-record Woo snapshot, alongside the original 4-row reimport rejection. A bug in the first rights report dropped later error types from its first-30 display; fixed by **independently counting all errors by code while limiting detail preview to 30 lines**, with an added 2,000-row regression test.
+- Actual live-snapshot outcomes: 4 historic QA rows **BLOCKED** (4 Woo SKU collisions and 11 metadata findings); 2,000 synthetic rows **BLOCKED** (0 Woo structural errors but **4,002 rights/source metadata findings** including unavailable rights manifest). Both had `dev_write_performed=false`, and no Confirm command ran.
+- Existing Drive was also searched by project/product-source keywords; no identified iDollmate-specific supplier catalog was found among accessible results. Other unrelated BYL product sheets were **not treated as iDollmate source evidence**.
