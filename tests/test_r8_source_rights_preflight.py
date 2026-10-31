@@ -119,6 +119,25 @@ class SourceIntakeTests(unittest.TestCase):
         self.assertFalse(r["ready_for_independent_owner_evidence_review"])
         self.assertIn("WOO_SKU_TAXONOMY_OR_CSV_PREVIEW_BLOCKED", [x["code"] for x in r["issues"]])
 
+    def test_2000_synthetic_errors_do_not_hide_missing_evidence_blocker(self):
+        self.rights.unlink()
+        synthetic = []
+        for i in range(2000):
+            row = self.item.copy()
+            row["sku"] = f"IDM-R8-SYNTH-{i:04d}"
+            row["slug"] = f"qa-synthetic-model-{i:04d}"
+            row["source_ref"] = f"QA-SYNTHETIC-{i:04d}"
+            synthetic.append(row)
+        self._csv(self.catalog, COLS, synthetic)
+        r = self.check()
+        self.assertFalse(r["ready_for_independent_owner_evidence_review"])
+        self.assertEqual(r["issue_code_counts"]["QA_OR_SYNTHETIC_RECORD_FORBIDDEN"], 2000)
+        self.assertEqual(r["issue_code_counts"]["RIGHTS_MANIFEST_MISSING_OR_UNSAFE"], 1)
+        self.assertEqual(r["rights_metadata_issue_count"], sum(r["issue_code_counts"].values()))
+        self.assertLessEqual(len(r["issues"]), 30)
+        self.assertTrue(r["issues_truncated"])
+        self.assertFalse(r["dev_write_performed"])
+
 
 if __name__ == "__main__":
     unittest.main()
