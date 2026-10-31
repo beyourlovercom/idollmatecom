@@ -14,7 +14,8 @@
 - Backoffice/admin interfaces of Andy-series plugins are Desktop-only; customer-facing storefront remains mobile-responsive.
 
 ## Reference and content policy
-- `yourdoll.com` is a third-party reference, not the iDollmate source code.
+- **YourDoll source ownership (Owner statement 2026-10-31):** the Owner explicitly confirms `yourdoll.com` is their own website and authorizes a **private, high-fidelity local backup/reconstruction** under `duplicate-site-skills`. This replaces the older assumption that the site is an unrelated competitor. Preserve the source identity as source evidence; keep original backup media/HTML/DB in private storage, never in this public GitHub repository.
+- Public search indexing, public reuse of YourDoll brand/content on the separate iDollmate WordPress domain, production replacement, and use of source-side admin/DB data each remain separate actions; do not infer them from local backup permission.
 - A public URL inventory is permitted; only archive content accessible through ordinary published endpoints when access and rights permit.
 - Respect robots and terms, crawl conservatively; stop on access-denied, login, CAPTCHA, Cloudflare challenge or rate limits.
 - Raw third-party HTML, original photos, CSS/JS, brand assets and copy must **not** be published in this public repository or pushed onto iDollmate by default.
