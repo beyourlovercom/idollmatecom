@@ -1,0 +1,5 @@
+sku,row_type,parent_sku,title,slug,category_slug,brand_slug,material,size_code,height_cm,weight_kg,fulfillment_mode,dispatch_region,lead_days,price_usd,stock_quantity,content_origin,source_ref,reference_image_url,product_status
+IDM-R8-EXAMPLE-SIMPLE,simple,,Original Example Simple Doll,original-example-simple-doll,mini-dolls,,tpe,,75,12,factory_mto,CN,21,599.00,,original,QA-EXAMPLE-001,,draft
+IDM-R8-EXAMPLE-PARENT,variable,,Original Example Configurable Doll,original-example-configurable-doll,full-body-dolls,,,,155,32,factory_mto,CN,28,,,original,QA-EXAMPLE-002,,draft
+IDM-R8-EXAMPLE-TPE,variation,IDM-R8-EXAMPLE-PARENT,,,,,tpe,,,,,,,999.00,,original,QA-EXAMPLE-003,,draft
+IDM-R8-EXAMPLE-SIL,variation,IDM-R8-EXAMPLE-PARENT,,,,,silicone,,,,,,,1099.00,,original,QA-EXAMPLE-004,,draft
