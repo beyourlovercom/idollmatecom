@@ -2,6 +2,8 @@
 
 **Date:** 2026-10-30. **Status:** prepared package, **NOT AUTHORIZED TO DEPLOY**. Authenticated Local Draft browser gate **A PASSED** on 2026-10-30; original Hostinger 2.1.15 theme gate **B PASSED for the bounded manager-only release** on 2026-10-31 using exact private theme files and real Windows Local Chrome; fresh full target backup/inventory and separate Owner approval remain outstanding. See `docs/uat/R8_E_WINDOWS_LOCAL_BROWSER_AND_RELEASE_GATES_2026-10-30.md`.
 
+> **2026-10-31 F1→F3 Owner override:** The original sections below describe the default full backup policy. For the current limited R8-F1–F3 request, Owner **explicitly omitted F2 backups**. The fresh actual-target read-only audit passed **40/40**; a no-new-backup approval sheet and risk record **supersede the backup instructions for this specific preparation**: [R8_F1_F3_READONLY_PREFLIGHT_NO_BACKUP_OWNER_APPROVAL_2026-10-31.md](R8_F1_F3_READONLY_PREFLIGHT_NO_BACKUP_OWNER_APPROVAL_2026-10-31.md). No new backup was made, and F4 plugin deployment still requires separate approval. Old 0.1.1 plugin archive is historical evidence, not a freshly verified full-site backup.
+
 ## Target and exact scope
 - **Only deployment target:** `https://dev.idollmate.com`, the official final WordPress/WooCommerce target. The domain prefix is historical. **Do not deploy to or modify `https://idollmate.com` Shopify.**
 - Candidate source: `beyourlovercom/idollmatecom` branch `feat/r8-catalog-os-v1` (stacked Draft PR #5 on Draft PR #3); effective software change is limited to `wordpress/plugins/idollmate-discovery/idollmate-discovery.php`.
