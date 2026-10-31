@@ -44,9 +44,14 @@ def records(path: Path, max_bytes: int = 15_000_000) -> tuple[list[str], list[di
 
 def validate(catalog: Path, rights: Path, live_snapshot: Path) -> dict:
     issues: list[dict] = []
+    issue_counts: dict[str, int] = {}
+    issue_total = 0
 
     def fail(code: str, line: int = 0):
-        if len(issues) < 100:
+        nonlocal issue_total
+        issue_total += 1
+        issue_counts[code] = issue_counts.get(code, 0) + 1
+        if len(issues) < 30:
             issues.append({"code": code, "line": line})
 
     catalog_fields, items = records(catalog)
@@ -118,10 +123,11 @@ def validate(catalog: Path, rights: Path, live_snapshot: Path) -> dict:
         "policy_sha256": p["policy_sha256"],
         "woo_preview_error_count": p["error_count"],
         "woo_preview_blocker_count": p["blocker_count"],
-        "rights_metadata_issue_count": len(issues),
-        "issues": issues[:30],
-        "issues_truncated": len(issues) > 30,
-        "ready_for_independent_owner_evidence_review": not issues,
+        "rights_metadata_issue_count": issue_total,
+        "issue_code_counts": dict(sorted(issue_counts.items())),
+        "issues": issues,
+        "issues_truncated": issue_total > len(issues),
+        "ready_for_independent_owner_evidence_review": issue_total == 0,
         "legal_rights_independently_proven": False,
         "owner_write_pass_received": False,
         "production_import_approved": False,
