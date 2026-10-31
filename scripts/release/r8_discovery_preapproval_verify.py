@@ -66,7 +66,7 @@ def main() -> int:
         "zip_sha256": ZIP_SHA,
         "zip_bytes": archive.stat().st_size,
         "files": EXPECTED,
-        "next": "Hostinger theme parity, fresh target readonly preflight and backup require separate Owner PASS",
+        "next": "Hostinger theme Gate B PASS; fresh product/journal preflight, full site/DB backup and separate Owner PASS are still required",
     }, indent=2))
     return 0
 
